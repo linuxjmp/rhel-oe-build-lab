@@ -1,0 +1,929 @@
+[DEPRECATION WARNING]: [defaults]collections_paths option, does not fit var 
+naming standard, use the singular form collections_path instead. This feature 
+will be removed from ansible-core in version 2.19. Deprecation warnings can be 
+disabled by setting deprecation_warnings=False in ansible.cfg.
+
+PLAY [Validate Operating Environment posture] **********************************
+
+TASK [Collect SELinux state] ***************************************************
+Thursday 11 June 2026  17:23:09 -0400 (0:00:00.020)       0:00:00.020 ********* 
+ok: [serverd]
+ok: [servera]
+ok: [serverc]
+ok: [serverb]
+
+TASK [Assert SELinux is Enforcing] *********************************************
+Thursday 11 June 2026  17:23:09 -0400 (0:00:00.283)       0:00:00.303 ********* 
+ok: [servera] => {
+    "changed": false,
+    "msg": "SELinux: Enforcing"
+}
+ok: [serverb] => {
+    "changed": false,
+    "msg": "SELinux: Enforcing"
+}
+ok: [serverd] => {
+    "changed": false,
+    "msg": "SELinux: Enforcing"
+}
+ok: [serverc] => {
+    "changed": false,
+    "msg": "SELinux: Enforcing"
+}
+
+TASK [Collect baseline service state] ******************************************
+Thursday 11 June 2026  17:23:09 -0400 (0:00:00.062)       0:00:00.366 ********* 
+ok: [servera] => (item=firewalld)
+ok: [serverb] => (item=firewalld)
+ok: [serverd] => (item=firewalld)
+ok: [serverc] => (item=firewalld)
+ok: [servera] => (item=auditd)
+ok: [serverd] => (item=auditd)
+ok: [serverb] => (item=auditd)
+ok: [serverc] => (item=auditd)
+ok: [servera] => (item=chronyd)
+ok: [serverd] => (item=chronyd)
+ok: [serverb] => (item=chronyd)
+ok: [serverc] => (item=chronyd)
+ok: [servera] => (item=sshd)
+ok: [serverd] => (item=sshd)
+ok: [serverb] => (item=sshd)
+ok: [serverc] => (item=sshd)
+
+TASK [Assert every baseline service is active] *********************************
+Thursday 11 June 2026  17:23:10 -0400 (0:00:00.787)       0:00:01.154 ********* 
+ok: [servera] => (item=firewalld) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "firewalld"
+        ],
+        "delta": "0:00:00.006671",
+        "end": "2026-06-11 17:23:09.675677",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active firewalld",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "firewalld",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:09.669006",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "firewalld: active"
+}
+ok: [servera] => (item=auditd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "auditd"
+        ],
+        "delta": "0:00:00.006531",
+        "end": "2026-06-11 17:23:09.850548",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active auditd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "auditd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:09.844017",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "auditd: active"
+}
+ok: [servera] => (item=chronyd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "chronyd"
+        ],
+        "delta": "0:00:00.006497",
+        "end": "2026-06-11 17:23:10.021233",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active chronyd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "chronyd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:10.014736",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "chronyd: active"
+}
+ok: [servera] => (item=sshd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "sshd"
+        ],
+        "delta": "0:00:00.006563",
+        "end": "2026-06-11 17:23:10.191226",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active sshd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "sshd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:10.184663",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "sshd: active"
+}
+ok: [serverb] => (item=firewalld) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "firewalld"
+        ],
+        "delta": "0:00:00.007039",
+        "end": "2026-06-11 17:23:09.700943",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active firewalld",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "firewalld",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:09.693904",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "firewalld: active"
+}
+ok: [serverc] => (item=firewalld) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "firewalld"
+        ],
+        "delta": "0:00:00.007654",
+        "end": "2026-06-11 17:23:09.708919",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active firewalld",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "firewalld",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:09.701265",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "firewalld: active"
+}
+ok: [serverb] => (item=auditd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "auditd"
+        ],
+        "delta": "0:00:00.007082",
+        "end": "2026-06-11 17:23:09.885762",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active auditd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "auditd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:09.878680",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "auditd: active"
+}
+ok: [serverc] => (item=auditd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "auditd"
+        ],
+        "delta": "0:00:00.007538",
+        "end": "2026-06-11 17:23:09.893441",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active auditd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "auditd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:09.885903",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "auditd: active"
+}
+ok: [serverc] => (item=chronyd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "chronyd"
+        ],
+        "delta": "0:00:00.007860",
+        "end": "2026-06-11 17:23:10.085227",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active chronyd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "chronyd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:10.077367",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "chronyd: active"
+}
+ok: [serverb] => (item=chronyd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "chronyd"
+        ],
+        "delta": "0:00:00.006992",
+        "end": "2026-06-11 17:23:10.077347",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active chronyd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "chronyd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:10.070355",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "chronyd: active"
+}
+ok: [serverc] => (item=sshd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "sshd"
+        ],
+        "delta": "0:00:00.007213",
+        "end": "2026-06-11 17:23:10.261536",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active sshd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "sshd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:10.254323",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "sshd: active"
+}
+ok: [serverd] => (item=firewalld) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "firewalld"
+        ],
+        "delta": "0:00:00.006627",
+        "end": "2026-06-11 17:23:09.707587",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active firewalld",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "firewalld",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:09.700960",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "firewalld: active"
+}
+ok: [serverb] => (item=sshd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "sshd"
+        ],
+        "delta": "0:00:00.007143",
+        "end": "2026-06-11 17:23:10.259165",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active sshd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "sshd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:10.252022",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "sshd: active"
+}
+ok: [serverd] => (item=auditd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "auditd"
+        ],
+        "delta": "0:00:00.006491",
+        "end": "2026-06-11 17:23:09.880508",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active auditd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "auditd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:09.874017",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "auditd: active"
+}
+ok: [serverd] => (item=chronyd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "chronyd"
+        ],
+        "delta": "0:00:00.006458",
+        "end": "2026-06-11 17:23:10.044579",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active chronyd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "chronyd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:10.038121",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "chronyd: active"
+}
+ok: [serverd] => (item=sshd) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": {
+        "ansible_loop_var": "item",
+        "changed": false,
+        "cmd": [
+            "systemctl",
+            "is-active",
+            "sshd"
+        ],
+        "delta": "0:00:00.006498",
+        "end": "2026-06-11 17:23:10.207963",
+        "failed": false,
+        "failed_when_result": false,
+        "invocation": {
+            "module_args": {
+                "_raw_params": "systemctl is-active sshd",
+                "_uses_shell": false,
+                "argv": null,
+                "chdir": null,
+                "creates": null,
+                "executable": null,
+                "expand_argument_vars": true,
+                "removes": null,
+                "stdin": null,
+                "stdin_add_newline": true,
+                "strip_empty_ends": true
+            }
+        },
+        "item": "sshd",
+        "msg": "",
+        "rc": 0,
+        "start": "2026-06-11 17:23:10.201465",
+        "stderr": "",
+        "stderr_lines": [],
+        "stdout": "active",
+        "stdout_lines": [
+            "active"
+        ]
+    },
+    "msg": "sshd: active"
+}
+
+TASK [Collect sshd effective config] *******************************************
+Thursday 11 June 2026  17:23:10 -0400 (0:00:00.120)       0:00:01.274 ********* 
+ok: [servera]
+ok: [serverd]
+ok: [serverb]
+ok: [serverc]
+
+TASK [Assert sshd PasswordAuthentication is disabled] **************************
+Thursday 11 June 2026  17:23:10 -0400 (0:00:00.225)       0:00:01.500 ********* 
+ok: [servera] => {
+    "changed": false,
+    "msg": "sshd: PasswordAuthentication no"
+}
+ok: [serverb] => {
+    "changed": false,
+    "msg": "sshd: PasswordAuthentication no"
+}
+ok: [serverc] => {
+    "changed": false,
+    "msg": "sshd: PasswordAuthentication no"
+}
+ok: [serverd] => {
+    "changed": false,
+    "msg": "sshd: PasswordAuthentication no"
+}
+
+TASK [Collect chrony tracking status] ******************************************
+Thursday 11 June 2026  17:23:10 -0400 (0:00:00.064)       0:00:01.565 ********* 
+ok: [servera]
+ok: [serverd]
+ok: [serverc]
+ok: [serverb]
+
+TASK [Assert chrony reports Leap status Normal] ********************************
+Thursday 11 June 2026  17:23:10 -0400 (0:00:00.245)       0:00:01.810 ********* 
+ok: [servera] => {
+    "changed": false,
+    "msg": "chrony: Leap status Normal"
+}
+ok: [serverb] => {
+    "changed": false,
+    "msg": "chrony: Leap status Normal"
+}
+ok: [serverc] => {
+    "changed": false,
+    "msg": "chrony: Leap status Normal"
+}
+ok: [serverd] => {
+    "changed": false,
+    "msg": "chrony: Leap status Normal"
+}
+
+TASK [Collect disk pressure (excluding tmpfs/devtmpfs/squashfs/iso9660)] *******
+Thursday 11 June 2026  17:23:10 -0400 (0:00:00.049)       0:00:01.860 ********* 
+ok: [servera]
+ok: [serverd]
+ok: [serverb]
+ok: [serverc]
+
+TASK [Assert no writable filesystem above 70%] *********************************
+Thursday 11 June 2026  17:23:11 -0400 (0:00:00.224)       0:00:02.084 ********* 
+ok: [servera] => (item=/) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "/dev/mapper/rhel-root 9 /",
+    "msg": "/: 9%"
+}
+ok: [servera] => (item=/boot) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "/dev/sda2 37 /boot",
+    "msg": "/boot: 37%"
+}
+ok: [serverb] => (item=/) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "/dev/mapper/rhel-root 9 /",
+    "msg": "/: 9%"
+}
+ok: [serverb] => (item=/boot) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "/dev/sda2 37 /boot",
+    "msg": "/boot: 37%"
+}
+ok: [serverc] => (item=/) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "/dev/mapper/rhel-root 9 /",
+    "msg": "/: 9%"
+}
+ok: [serverc] => (item=/boot) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "/dev/sda2 37 /boot",
+    "msg": "/boot: 37%"
+}
+ok: [serverd] => (item=/) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "/dev/mapper/rhel-root 9 /",
+    "msg": "/: 9%"
+}
+ok: [serverd] => (item=/boot) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "/dev/sda2 37 /boot",
+    "msg": "/boot: 37%"
+}
+
+TASK [Collect firewalld services in default zone] ******************************
+Thursday 11 June 2026  17:23:11 -0400 (0:00:00.100)       0:00:02.185 ********* 
+ok: [servera]
+ok: [serverb]
+ok: [serverc]
+ok: [serverd]
+
+TASK [Assert required firewalld services are present] **************************
+Thursday 11 June 2026  17:23:11 -0400 (0:00:00.678)       0:00:02.863 ********* 
+ok: [servera] => (item=ssh) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "ssh",
+    "msg": "firewalld: ssh allowed"
+}
+ok: [serverb] => (item=ssh) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "ssh",
+    "msg": "firewalld: ssh allowed"
+}
+ok: [serverc] => (item=ssh) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "ssh",
+    "msg": "firewalld: ssh allowed"
+}
+ok: [serverd] => (item=ssh) => {
+    "ansible_loop_var": "item",
+    "changed": false,
+    "item": "ssh",
+    "msg": "firewalld: ssh allowed"
+}
+
+TASK [Validation summary] ******************************************************
+Thursday 11 June 2026  17:23:12 -0400 (0:00:00.056)       0:00:02.920 ********* 
+ok: [servera] => {
+    "msg": "servera — validation passed\n  SELinux:    Enforcing\n  Services:   firewalld, auditd, chronyd, sshd\n  sshd:       PasswordAuthentication off\n  chrony:     Leap status Normal\n  Disks:      all <= 70%\n  firewalld:  ssh\n"
+}
+ok: [serverc] => {
+    "msg": "serverc — validation passed\n  SELinux:    Enforcing\n  Services:   firewalld, auditd, chronyd, sshd\n  sshd:       PasswordAuthentication off\n  chrony:     Leap status Normal\n  Disks:      all <= 70%\n  firewalld:  ssh\n"
+}
+ok: [serverb] => {
+    "msg": "serverb — validation passed\n  SELinux:    Enforcing\n  Services:   firewalld, auditd, chronyd, sshd\n  sshd:       PasswordAuthentication off\n  chrony:     Leap status Normal\n  Disks:      all <= 70%\n  firewalld:  ssh\n"
+}
+ok: [serverd] => {
+    "msg": "serverd — validation passed\n  SELinux:    Enforcing\n  Services:   firewalld, auditd, chronyd, sshd\n  sshd:       PasswordAuthentication off\n  chrony:     Leap status Normal\n  Disks:      all <= 70%\n  firewalld:  ssh\n"
+}
+
+PLAY RECAP *********************************************************************
+servera                    : ok=13   changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+serverb                    : ok=13   changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+serverc                    : ok=13   changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+serverd                    : ok=13   changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0   
+
+
+TASKS RECAP ********************************************************************
+Thursday 11 June 2026  17:23:12 -0400 (0:00:00.069)       0:00:02.990 ********* 
+=============================================================================== 
+Collect baseline service state ------------------------------------------ 0.79s
+Collect firewalld services in default zone ------------------------------ 0.68s
+Collect SELinux state --------------------------------------------------- 0.28s
+Collect chrony tracking status ------------------------------------------ 0.25s
+Collect sshd effective config ------------------------------------------- 0.23s
+Collect disk pressure (excluding tmpfs/devtmpfs/squashfs/iso9660) ------- 0.22s
+Assert every baseline service is active --------------------------------- 0.12s
+Assert no writable filesystem above 70% --------------------------------- 0.10s
+Validation summary ------------------------------------------------------ 0.07s
+Assert sshd PasswordAuthentication is disabled -------------------------- 0.06s
+Assert SELinux is Enforcing --------------------------------------------- 0.06s
+Assert required firewalld services are present -------------------------- 0.06s
+Assert chrony reports Leap status Normal -------------------------------- 0.05s
+
+PLAYBOOK RECAP *****************************************************************
+Playbook run took 0 days, 0 hours, 0 minutes, 2 seconds
+

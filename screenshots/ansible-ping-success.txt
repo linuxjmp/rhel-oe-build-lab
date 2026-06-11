@@ -1,0 +1,19 @@
+naming standard, use the singular form collections_path instead. This feature 
+will be removed from ansible-core in version 2.19. Deprecation warnings can be 
+disabled by setting deprecation_warnings=False in ansible.cfg.
+serverd | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+serverc | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+servera | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+serverb | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
