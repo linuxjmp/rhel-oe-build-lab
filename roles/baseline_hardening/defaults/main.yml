@@ -1,0 +1,30 @@
+---
+# defaults/main.yml — baseline_hardening
+#
+# Override these in group_vars/, host_vars/, or playbook vars.
+
+# Packages required for the controls in this role to function.
+baseline_packages:
+  - chrony
+  - audit
+  - firewalld
+  - policycoreutils-python-utils
+
+# SELinux state. 'enforcing' for production. 'permissive' is only
+# acceptable inside a documented diagnostic window — record the
+# deviation in the CRQ.
+baseline_selinux_state: enforcing
+
+# firewalld defaults.
+baseline_firewalld_default_zone: public
+baseline_firewalld_services:
+  - ssh
+
+# SSH posture.
+#
+# Default 'yes' preserves current root SSH access so the first apply
+# of this role does NOT lock out the control node (the inventory
+# still connects as root). The target state is 'no', flipped only
+# after the admin user is in place — tracked as CRQ-002.
+baseline_sshd_permit_root_login: "yes"
+baseline_sshd_password_authentication: "no"
