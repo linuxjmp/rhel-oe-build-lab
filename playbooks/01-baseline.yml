@@ -1,0 +1,8 @@
+---
+- name: Apply baseline hardening
+  hosts: production
+  become: true
+
+  roles:
+    - baseline_hardening
+

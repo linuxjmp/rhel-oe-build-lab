@@ -1,0 +1,146 @@
+---
+# 03-validation.yml
+#
+# Enforce — not just observe — that every host in [production]
+# matches the lab's baseline end state. Uses ansible.builtin.assert
+# so any deviation halts the play with a clear reason.
+#
+# Run this:
+#   - after baseline_hardening
+#   - after a quarterly update
+#   - on a schedule (cron / systemd timer) for posture drift
+#   - any time you want a green light before declaring a change done
+#
+# Usage
+# -----
+#   ansible-playbook playbooks/03-validation.yml
+#   ansible-playbook playbooks/03-validation.yml --limit servera
+
+- name: Validate Operating Environment posture
+  hosts: production
+  become: true
+  gather_facts: true
+
+  vars:
+    validation_required_services:
+      - firewalld
+      - auditd
+      - chronyd
+      - sshd
+    validation_disk_pressure_max_pct: 70
+    validation_required_firewall_services:
+      - ssh
+
+  tasks:
+    - name: Collect SELinux state
+      ansible.builtin.command:
+        cmd: getenforce
+      register: v_getenforce
+      changed_when: false
+      check_mode: false
+
+    - name: Assert SELinux is Enforcing
+      ansible.builtin.assert:
+        that:
+          - v_getenforce.stdout | trim == 'Enforcing'
+        fail_msg: "SELinux is '{{ v_getenforce.stdout | trim }}', expected 'Enforcing'."
+        success_msg: "SELinux: Enforcing"
+
+    - name: Collect baseline service state
+      ansible.builtin.command:
+        cmd: "systemctl is-active {{ item }}"
+      register: v_services
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      loop: "{{ validation_required_services }}"
+
+    - name: Assert every baseline service is active
+      ansible.builtin.assert:
+        that:
+          - item.stdout | trim == 'active'
+        fail_msg: "{{ item.item }} is '{{ item.stdout | trim }}', expected 'active'."
+        success_msg: "{{ item.item }}: active"
+      loop: "{{ v_services.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    - name: Collect sshd effective config
+      ansible.builtin.command:
+        cmd: sshd -T
+      register: v_sshd
+      changed_when: false
+      check_mode: false
+
+    - name: Assert sshd PasswordAuthentication is disabled
+      ansible.builtin.assert:
+        that:
+          - "'passwordauthentication no' in v_sshd.stdout | lower"
+        fail_msg: "sshd PasswordAuthentication is not 'no'."
+        success_msg: "sshd: PasswordAuthentication no"
+
+    - name: Collect chrony tracking status
+      ansible.builtin.command:
+        cmd: chronyc tracking
+      register: v_chrony
+      changed_when: false
+      check_mode: false
+
+    - name: Assert chrony reports Leap status Normal
+      ansible.builtin.assert:
+        that:
+          - "'Leap status     : Normal' in v_chrony.stdout"
+        fail_msg: |
+          chrony Leap status is not Normal. Tracking output:
+          {{ v_chrony.stdout }}
+        success_msg: "chrony: Leap status Normal"
+
+    - name: Collect disk pressure (excluding tmpfs/devtmpfs/squashfs/iso9660)
+      ansible.builtin.shell:
+        cmd: |
+          df --output=source,pcent,target -x tmpfs -x devtmpfs -x squashfs -x iso9660 |
+            awk 'NR>1 {sub(/%/, "", $2); print $1, $2, $3}'
+      register: v_df
+      changed_when: false
+      check_mode: false
+
+    - name: Assert no writable filesystem above {{ validation_disk_pressure_max_pct }}%
+      ansible.builtin.assert:
+        that:
+          - (item.split()[1] | int) <= validation_disk_pressure_max_pct
+        fail_msg: >-
+          {{ item.split()[2] }} on {{ item.split()[0] }} is
+          {{ item.split()[1] }}% full
+          (threshold {{ validation_disk_pressure_max_pct }}%).
+        success_msg: "{{ item.split()[2] }}: {{ item.split()[1] }}%"
+      loop: "{{ v_df.stdout_lines }}"
+      loop_control:
+        label: "{{ (item.split() | length > 2) | ternary(item.split()[2], '?') }}"
+
+    - name: Collect firewalld services in default zone
+      ansible.builtin.command:
+        cmd: firewall-cmd --list-services
+      register: v_fwd
+      changed_when: false
+      check_mode: false
+
+    - name: Assert required firewalld services are present
+      ansible.builtin.assert:
+        that:
+          - item in v_fwd.stdout.split()
+        fail_msg: >-
+          firewalld is not allowing '{{ item }}' in the default zone.
+          Allowed services: {{ v_fwd.stdout }}
+        success_msg: "firewalld: {{ item }} allowed"
+      loop: "{{ validation_required_firewall_services }}"
+
+    - name: Validation summary
+      ansible.builtin.debug:
+        msg: |
+          {{ inventory_hostname }} — validation passed
+            SELinux:    Enforcing
+            Services:   {{ validation_required_services | join(', ') }}
+            sshd:       PasswordAuthentication off
+            chrony:     Leap status Normal
+            Disks:      all <= {{ validation_disk_pressure_max_pct }}%
+            firewalld:  {{ validation_required_firewall_services | join(', ') }}

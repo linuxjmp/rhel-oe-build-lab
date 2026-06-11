@@ -1,0 +1,190 @@
+---
+# 04-rollback-checklist.yml
+#
+# Guided rollback playbook for the rhel-oe-build-lab. Reverses the
+# most recent (or operator-specified) dnf transaction on a SINGLE
+# host, with confirmation gates and a printed checklist of recovery
+# steps that cannot be safely automated.
+#
+# Design notes
+# ------------
+# Rollback is an emergency operation. This playbook is intentionally
+# slow to execute: it refuses to run against more than one host, it
+# requires typed confirmation, and it pauses before each destructive
+# step. Speed is not the goal; correctness under pressure is.
+#
+# Usage
+# -----
+#   # 1. Identify the bad transaction on the affected host:
+#   ansible <host> -m command -a 'dnf history list'
+#
+#   # 2. Run the rollback against ONE host (--limit is required):
+#   ansible-playbook playbooks/04-rollback-checklist.yml \
+#     --limit <host>
+#
+#   # 3. When prompted:
+#   #    - Transaction ID: enter a numeric ID or accept the default
+#   #      'last' to undo the most recent transaction
+#   #    - Confirmation:   type 'rollback' (any other input aborts)
+#
+# At pause gates:
+#   ENTER       proceed
+#   Ctrl+C, A   abort the play (safe — nothing destructive yet)
+#   Ctrl+C, C   continue past the pause (skip operator review)
+#
+# What this playbook does NOT do:
+#   - Restore data from backup            (operator-specific)
+#   - Revert config files outside RPM     (operator action)
+#   - Select a prior kernel in GRUB       (requires console)
+#   - Decide whether to declare incident  (policy decision)
+#
+# Those live in the manual checklist printed at the end.
+
+# ----------------------------------------------------------------
+# Preflight: refuse to run against more than one host.
+# Lives as a separate play so the assert runs BEFORE the operator
+# is prompted for any input — missing --limit fails fast.
+# ----------------------------------------------------------------
+- name: Rollback preflight
+  hosts: production
+  gather_facts: false
+
+  tasks:
+    - name: Assert exactly one host is targeted
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts_all | length == 1
+        fail_msg: |
+          Rollback must target exactly ONE host. Currently targeting:
+            {{ ansible_play_hosts_all | join(', ') }}
+          Re-run with --limit <hostname>.
+        success_msg: "Rollback targeting {{ ansible_play_hosts_all[0] }}."
+      run_once: true
+
+# ----------------------------------------------------------------
+# Guided rollback
+# ----------------------------------------------------------------
+- name: Operating Environment Rollback (guided)
+  hosts: production
+  become: true
+  gather_facts: true
+
+  vars_prompt:
+    - name: rollback_transaction_id
+      prompt: |-
+        Enter the dnf transaction ID to undo.
+          'last'   = revert the most recent transaction
+          <number> = revert a specific transaction
+        Find IDs with: dnf history list
+        Transaction ID
+      default: "last"
+      private: false
+
+    - name: rollback_confirm
+      prompt: |-
+        Rollback is destructive and may require a reboot.
+        Type 'rollback' (no quotes) to proceed; anything else aborts.
+        Confirmation
+      private: false
+
+  pre_tasks:
+    - name: Refuse to run without typed confirmation
+      ansible.builtin.fail:
+        msg: |
+          Rollback aborted. Confirmation input was '{{ rollback_confirm }}',
+          expected literal 'rollback'.
+      when: rollback_confirm != "rollback"
+
+  tasks:
+    - name: Show recent dnf history (operator reference)
+      ansible.builtin.command:
+        cmd: dnf -q history list
+      register: dnf_history
+      changed_when: false
+      check_mode: false
+
+    - name: Display recent dnf history
+      ansible.builtin.debug:
+        msg: "{{ dnf_history.stdout_lines }}"
+
+    - name: Operator review gate
+      ansible.builtin.pause:
+        prompt: |-
+          About to undo dnf transaction '{{ rollback_transaction_id }}'
+          on {{ inventory_hostname }}.
+          Press ENTER to proceed, or Ctrl+C, A to abort.
+
+    - name: Undo dnf transaction {{ rollback_transaction_id }}
+      ansible.builtin.command:
+        cmd: "dnf -y history undo {{ rollback_transaction_id }}"
+      register: dnf_undo
+
+    - name: Display dnf undo output
+      ansible.builtin.debug:
+        msg: "{{ dnf_undo.stdout_lines }}"
+
+    - name: Determine whether a reboot is required after rollback
+      ansible.builtin.command:
+        cmd: dnf -q needs-restarting -r
+      register: post_reboot_check
+      changed_when: false
+      failed_when: post_reboot_check.rc not in [0, 1]
+      check_mode: false
+
+    - name: Operator confirmation before post-rollback reboot
+      ansible.builtin.pause:
+        prompt: |-
+          A reboot is required to complete the rollback on
+          {{ inventory_hostname }}.
+          Press ENTER to reboot now, or Ctrl+C, A to abort and
+          reboot manually.
+      when: post_reboot_check.rc == 1
+
+    - name: Reboot host
+      ansible.builtin.reboot:
+        msg: "Reboot triggered by rollback playbook"
+        reboot_timeout: 600
+      when: post_reboot_check.rc == 1
+
+  post_tasks:
+    - name: Manual recovery checklist
+      ansible.builtin.debug:
+        msg:
+          - "============================================================"
+          - "ROLLBACK COMPLETE on {{ inventory_hostname }}"
+          - "Transaction undone: {{ rollback_transaction_id }}"
+          - "Reboot performed:   {{ 'yes' if post_reboot_check.rc == 1 else 'no' }}"
+          - "============================================================"
+          - "The following steps CANNOT be safely automated. Complete"
+          - "them deliberately before declaring the change recovered."
+          - ""
+          - "  [ ] Run the validation playbook against this host:"
+          - "      ansible-playbook playbooks/03-validation.yml \\"
+          - "        --limit {{ inventory_hostname }}"
+          - ""
+          - "  [ ] Verify application-specific smoke tests pass."
+          - ""
+          - "  [ ] Confirm any data touched by the failed change is"
+          - "      consistent (restore from backup if not)."
+          - ""
+          - "  [ ] If a kernel update was part of the reverted"
+          - "      transaction, confirm the running kernel is the"
+          - "      expected one:"
+          - "        uname -r"
+          - "        grub2-editenv list"
+          - ""
+          - "  [ ] Check for stale config left by rolled-back packages:"
+          - "        find /etc -name '*.rpmsave' -newer /var/log/dnf.log"
+          - ""
+          - "  [ ] Update the change record under change-records/ with:"
+          - "        - actual rollback timestamp"
+          - "        - reason rollback was triggered"
+          - "        - dnf transaction ID undone"
+          - "        - whether a reboot was performed"
+          - "        - outstanding issues"
+          - ""
+          - "  [ ] Notify stakeholders that rollback completed."
+          - ""
+          - "  [ ] Capture screenshots and dnf undo output for the"
+          - "      incident / change record."
+          - "============================================================"
