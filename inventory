@@ -1,0 +1,23 @@
+# rhel-oe-build-lab inventory
+#
+# Hosts in [production] are managed by the baseline_hardening,
+# quarterly update, and validation playbooks.
+#
+# Notes
+# -----
+# - ansible_user is currently 'root' for lab convenience.
+#   Target state: a dedicated 'admin' user with passwordless sudo,
+#   created by the 'users' role; the baseline_hardening role then
+#   disables root SSH. See architecture.md "Security Posture" and
+#   the planned change record CRQ-002 for the migration.
+# - Hostnames assume DNS or /etc/hosts entries on the control node.
+
+[production]
+servera
+serverb
+serverc
+serverd
+
+[all:vars]
+ansible_user=root
+ansible_become=true

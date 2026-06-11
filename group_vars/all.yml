@@ -1,0 +1,21 @@
+---
+# group_vars/all.yml
+#
+# Variables visible to every host in the inventory. Role defaults
+# live in roles/<role>/defaults/main.yml — only override here when a
+# value should be the same across the whole estate AND differ from
+# the role default.
+#
+# Examples (kept commented until needed):
+#
+# Tighten SSH for the whole fleet (do this only after the admin user
+# is in place — see planned change record CRQ-002):
+# baseline_sshd_permit_root_login: "no"
+#
+# Use a different default firewalld zone:
+# baseline_firewalld_default_zone: internal
+#
+# Add a service to the baseline firewall allow list:
+# baseline_firewalld_services:
+#   - ssh
+#   - cockpit
