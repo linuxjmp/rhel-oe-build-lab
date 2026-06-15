@@ -1,29 +1,41 @@
 ---
 # 02-quarterly-update.yml
 #
-# Apply available errata to every host in [production], one host at
-# a time, with pre/post snapshots and a per-host markdown report
-# written to ../reports/ on the control node.
+# Applies the quarterly patch cycle to [production], one host at a
+# time, and writes a per-host Markdown report to reports/.
+#
+# Flow:
+#   1. patching role  — snapshot → update → reboot check → post-snapshot
+#   2. report task    — renders quarterly_report.md.j2 on localhost
 #
 # Usage
 # -----
-#   # Dry-run preview against a canary
+#   # Dry-run against a canary host first:
 #   ansible-playbook playbooks/02-quarterly-update.yml \
 #     --check --diff --limit servera
 #
-#   # Real apply, canary first
+#   # Apply to the canary, then inspect the report:
 #   ansible-playbook playbooks/02-quarterly-update.yml --limit servera
+#   cat reports/*-servera.md
 #
-#   # Full fleet (after the canary is clean)
+#   # Apply to the full fleet (after canary is clean):
 #   ansible-playbook playbooks/02-quarterly-update.yml
+#
+#   # Allow automatic reboots (unattended pipeline):
+#   ansible-playbook playbooks/02-quarterly-update.yml \
+#     -e patching_allow_reboot=true
+#
+#   # Security errata only (instead of full update):
+#   ansible-playbook playbooks/02-quarterly-update.yml \
+#     -e patching_update_mode=security
 
 - name: Quarterly Operating Environment update
   hosts: production
   become: true
 
-  # Staged rollout. One host at a time keeps a bad update from
-  # taking out the fleet. Raise to '2' or '25%' once the change is
-  # trusted at canary scale.
+  # Staged rollout: one host at a time. A failure stops the play
+  # before it reaches the next host. Raise to '2' or '25%' once
+  # the update is confirmed clean on a canary.
   serial: 1
   max_fail_percentage: 0
 
@@ -42,93 +54,20 @@
       tags: [always]
 
   tasks:
-    # ---------- Pre-snapshot ----------
-    - name: Snapshot pre-update kernel
-      ansible.builtin.command:
-        cmd: uname -r
-      register: pre_kernel
-      changed_when: false
-      check_mode: false
-      tags: [snapshot]
+    # The patching role takes pre/post snapshots, applies updates,
+    # checks the reboot requirement, and publishes patching_* facts.
+    - name: Apply quarterly patches
+      ansible.builtin.import_role:
+        name: patching
+      tags: [patching]
 
-    - name: Snapshot pre-update package list
-      ansible.builtin.shell:
-        cmd: rpm -qa | sort
-      register: pre_packages
-      changed_when: false
-      check_mode: false
-      tags: [snapshot]
-
-    - name: Snapshot pre-update baseline service state
-      ansible.builtin.command:
-        cmd: "systemctl is-active firewalld auditd chronyd sshd"
-      register: pre_services
-      changed_when: false
-      failed_when: false
-      check_mode: false
-      tags: [snapshot]
-
-    # ---------- Apply updates ----------
-    - name: Refresh dnf metadata
-      ansible.builtin.dnf:
-        update_cache: true
-      tags: [update]
-
-    - name: Apply available updates
-      ansible.builtin.dnf:
-        name: '*'
-        state: latest
-      register: dnf_upgrade
-      tags: [update]
-
-    # ---------- Reboot decision ----------
-    - name: Determine whether a reboot is required
-      ansible.builtin.command:
-        cmd: dnf -q needs-restarting -r
-      register: reboot_check
-      changed_when: false
-      failed_when: reboot_check.rc not in [0, 1]
-      check_mode: false
-      tags: [reboot]
-
-    - name: Reboot host if dnf reports it is needed
-      ansible.builtin.reboot:
-        msg: "Reboot triggered by quarterly update playbook"
-        reboot_timeout: 600
-      when: reboot_check.rc == 1
-      tags: [reboot]
-
-    # ---------- Post-snapshot ----------
-    - name: Snapshot post-update kernel
-      ansible.builtin.command:
-        cmd: uname -r
-      register: post_kernel
-      changed_when: false
-      check_mode: false
-      tags: [snapshot]
-
-    - name: Snapshot post-update package list
-      ansible.builtin.shell:
-        cmd: rpm -qa | sort
-      register: post_packages
-      changed_when: false
-      check_mode: false
-      tags: [snapshot]
-
-    - name: Snapshot post-update baseline service state
-      ansible.builtin.command:
-        cmd: "systemctl is-active firewalld auditd chronyd sshd"
-      register: post_services
-      changed_when: false
-      failed_when: false
-      check_mode: false
-      tags: [snapshot]
-
-    # ---------- Per-host report ----------
-    - name: Render per-host update report
+    # Render a per-host Markdown report on the control node using the
+    # patching_* facts published by the role above.
+    - name: Render per-host quarterly update report
       ansible.builtin.template:
         src: quarterly_report.md.j2
-        dest: "{{ quarterly_reports_dir }}/{{ ansible_date_time.iso8601_basic_short }}-{{ inventory_hostname }}.md"
+        dest: >-
+          {{ quarterly_reports_dir }}/{{ ansible_date_time.iso8601_basic_short }}-{{ inventory_hostname }}.md
         mode: '0644'
       delegate_to: localhost
       become: false

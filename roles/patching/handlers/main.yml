@@ -1,0 +1,6 @@
+---
+# handlers/main.yml — patching
+#
+# The patching role manages its own reboot inline (when
+# patching_allow_reboot is true) rather than via a handler.
+# This file is kept for consistency and future use.

@@ -28,3 +28,8 @@ baseline_firewalld_services:
 # after the admin user is in place — tracked as CRQ-002.
 baseline_sshd_permit_root_login: "yes"
 baseline_sshd_password_authentication: "no"
+
+# MOTD login banner.
+# When true, deploys templates/motd.j2 to /etc/motd so every SSH
+# session shows the host name and a managed-system notice.
+baseline_motd_enabled: true

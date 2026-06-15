@@ -1,20 +1,24 @@
 ---
 # 03-validation.yml
 #
-# Enforce — not just observe — that every host in [production]
-# matches the lab's baseline end state. Uses ansible.builtin.assert
-# so any deviation halts the play with a clear reason.
+# Asserts that every host in [production] matches the lab's expected
+# baseline end state. Uses ansible.builtin.assert so any deviation
+# fails the play immediately with a clear reason.
 #
 # Run this:
-#   - after baseline_hardening
-#   - after a quarterly update
-#   - on a schedule (cron / systemd timer) for posture drift
-#   - any time you want a green light before declaring a change done
+#   - after 01-baseline.yml
+#   - after 02-quarterly-update.yml
+#   - on a schedule for drift detection
+#   - any time you want a clear pass/fail before declaring a change done
 #
 # Usage
 # -----
 #   ansible-playbook playbooks/03-validation.yml
 #   ansible-playbook playbooks/03-validation.yml --limit servera
+#
+#   # Save output as portfolio evidence:
+#   ansible-playbook playbooks/03-validation.yml 2>&1 | \
+#     tee reports/validation-$(date +%Y%m%d).txt
 
 - name: Validate Operating Environment posture
   hosts: production
@@ -22,16 +26,48 @@
   gather_facts: true
 
   vars:
+    # Services that must be active on every managed host.
     validation_required_services:
       - firewalld
       - auditd
       - chronyd
       - sshd
+
+    # Filesystem utilization threshold. Any real writable filesystem
+    # above this percentage is a failure. Read-only types (tmpfs,
+    # iso9660, etc.) are excluded from the check.
     validation_disk_pressure_max_pct: 70
+
+    # firewalld services that must be allowed in the default zone.
     validation_required_firewall_services:
       - ssh
 
+    # OS groups that must exist (created by the users role).
+    validation_required_groups:
+      - admin
+      - operations
+
+    # Sudoers drop-in files that must be present.
+    validation_sudoers_files:
+      - /etc/sudoers.d/wheel-nopass
+      - /etc/sudoers.d/ops-admin
+
+    # Audit rules file deployed by the auditd role.
+    validation_auditd_rules_file: /etc/audit/rules.d/99-lab-audit.rules
+
+    # Audit rule keys that must appear in the active rule set.
+    validation_required_audit_keys:
+      - identity
+      - sudoers
+      - sshd_config
+      - time_change
+
   tasks:
+
+    # ----------------------------------------------------------------
+    # SELinux
+    # ----------------------------------------------------------------
+
     - name: Collect SELinux state
       ansible.builtin.command:
         cmd: getenforce
@@ -43,8 +79,12 @@
       ansible.builtin.assert:
         that:
           - v_getenforce.stdout | trim == 'Enforcing'
-        fail_msg: "SELinux is '{{ v_getenforce.stdout | trim }}', expected 'Enforcing'."
-        success_msg: "SELinux: Enforcing"
+        fail_msg: "FAIL — SELinux is '{{ v_getenforce.stdout | trim }}', expected 'Enforcing'."
+        success_msg: "PASS — SELinux: Enforcing"
+
+    # ----------------------------------------------------------------
+    # Required services
+    # ----------------------------------------------------------------
 
     - name: Collect baseline service state
       ansible.builtin.command:
@@ -59,11 +99,15 @@
       ansible.builtin.assert:
         that:
           - item.stdout | trim == 'active'
-        fail_msg: "{{ item.item }} is '{{ item.stdout | trim }}', expected 'active'."
-        success_msg: "{{ item.item }}: active"
+        fail_msg: "FAIL — {{ item.item }} is '{{ item.stdout | trim }}', expected 'active'."
+        success_msg: "PASS — {{ item.item }}: active"
       loop: "{{ v_services.results }}"
       loop_control:
         label: "{{ item.item }}"
+
+    # ----------------------------------------------------------------
+    # SSH posture
+    # ----------------------------------------------------------------
 
     - name: Collect sshd effective config
       ansible.builtin.command:
@@ -76,8 +120,12 @@
       ansible.builtin.assert:
         that:
           - "'passwordauthentication no' in v_sshd.stdout | lower"
-        fail_msg: "sshd PasswordAuthentication is not 'no'."
-        success_msg: "sshd: PasswordAuthentication no"
+        fail_msg: "FAIL — sshd PasswordAuthentication is not 'no'."
+        success_msg: "PASS — sshd: PasswordAuthentication no"
+
+    # ----------------------------------------------------------------
+    # Time sync
+    # ----------------------------------------------------------------
 
     - name: Collect chrony tracking status
       ansible.builtin.command:
@@ -91,14 +139,19 @@
         that:
           - "'Leap status     : Normal' in v_chrony.stdout"
         fail_msg: |
-          chrony Leap status is not Normal. Tracking output:
+          FAIL — chrony Leap status is not Normal. Tracking output:
           {{ v_chrony.stdout }}
-        success_msg: "chrony: Leap status Normal"
+        success_msg: "PASS — chrony: Leap status Normal"
 
-    - name: Collect disk pressure (excluding tmpfs/devtmpfs/squashfs/iso9660)
+    # ----------------------------------------------------------------
+    # Disk pressure
+    # ----------------------------------------------------------------
+
+    - name: Collect disk utilization (excluding read-only filesystem types)
       ansible.builtin.shell:
         cmd: |
-          df --output=source,pcent,target -x tmpfs -x devtmpfs -x squashfs -x iso9660 |
+          df --output=source,pcent,target \
+            -x tmpfs -x devtmpfs -x squashfs -x iso9660 |
             awk 'NR>1 {sub(/%/, "", $2); print $1, $2, $3}'
       register: v_df
       changed_when: false
@@ -109,13 +162,17 @@
         that:
           - (item.split()[1] | int) <= validation_disk_pressure_max_pct
         fail_msg: >-
-          {{ item.split()[2] }} on {{ item.split()[0] }} is
+          FAIL — {{ item.split()[2] }} on {{ item.split()[0] }} is
           {{ item.split()[1] }}% full
           (threshold {{ validation_disk_pressure_max_pct }}%).
-        success_msg: "{{ item.split()[2] }}: {{ item.split()[1] }}%"
+        success_msg: "PASS — {{ item.split()[2] }}: {{ item.split()[1] }}%"
       loop: "{{ v_df.stdout_lines }}"
       loop_control:
         label: "{{ (item.split() | length > 2) | ternary(item.split()[2], '?') }}"
+
+    # ----------------------------------------------------------------
+    # firewalld rules
+    # ----------------------------------------------------------------
 
     - name: Collect firewalld services in default zone
       ansible.builtin.command:
@@ -129,18 +186,102 @@
         that:
           - item in v_fwd.stdout.split()
         fail_msg: >-
-          firewalld is not allowing '{{ item }}' in the default zone.
+          FAIL — firewalld is not allowing '{{ item }}' in the default zone.
           Allowed services: {{ v_fwd.stdout }}
-        success_msg: "firewalld: {{ item }} allowed"
+        success_msg: "PASS — firewalld: {{ item }} allowed"
       loop: "{{ validation_required_firewall_services }}"
+
+    # ----------------------------------------------------------------
+    # Groups (created by users role)
+    # ----------------------------------------------------------------
+
+    - name: Check required OS groups exist
+      ansible.builtin.command:
+        cmd: "getent group {{ item }}"
+      register: v_groups
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      loop: "{{ validation_required_groups }}"
+
+    - name: Assert required groups exist
+      ansible.builtin.assert:
+        that:
+          - item.rc == 0
+        fail_msg: "FAIL — group '{{ item.item }}' does not exist."
+        success_msg: "PASS — group '{{ item.item }}' exists"
+      loop: "{{ v_groups.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ----------------------------------------------------------------
+    # Sudoers drop-ins
+    # ----------------------------------------------------------------
+
+    - name: Check sudoers drop-in files are present and valid
+      ansible.builtin.command:
+        cmd: "visudo -cf {{ item }}"
+      register: v_sudoers
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      loop: "{{ validation_sudoers_files }}"
+
+    - name: Assert sudoers drop-ins are present and valid
+      ansible.builtin.assert:
+        that:
+          - item.rc == 0
+        fail_msg: "FAIL — {{ item.item }}: missing or invalid (visudo rc={{ item.rc }})."
+        success_msg: "PASS — {{ item.item }}: present and valid"
+      loop: "{{ v_sudoers.results }}"
+      loop_control:
+        label: "{{ item.item }}"
+
+    # ----------------------------------------------------------------
+    # auditd rules
+    # ----------------------------------------------------------------
+
+    - name: Check auditd rules file exists
+      ansible.builtin.stat:
+        path: "{{ validation_auditd_rules_file }}"
+      register: v_audit_rules_file
+
+    - name: Assert auditd rules file is present
+      ansible.builtin.assert:
+        that:
+          - v_audit_rules_file.stat.exists
+        fail_msg: "FAIL — {{ validation_auditd_rules_file }} does not exist."
+        success_msg: "PASS — {{ validation_auditd_rules_file }}: present"
+
+    - name: Collect active audit rules
+      ansible.builtin.command:
+        cmd: auditctl -l
+      register: v_auditctl
+      changed_when: false
+      check_mode: false
+
+    - name: Assert required audit rule keys are active
+      ansible.builtin.assert:
+        that:
+          - "'-k ' + item in v_auditctl.stdout"
+        fail_msg: "FAIL — audit key '{{ item }}' not found in active rule set."
+        success_msg: "PASS — audit key '{{ item }}' is active"
+      loop: "{{ validation_required_audit_keys }}"
+
+    # ----------------------------------------------------------------
+    # Summary
+    # ----------------------------------------------------------------
 
     - name: Validation summary
       ansible.builtin.debug:
         msg: |
-          {{ inventory_hostname }} — validation passed
+          {{ inventory_hostname }} — all validation checks passed
             SELinux:    Enforcing
             Services:   {{ validation_required_services | join(', ') }}
-            sshd:       PasswordAuthentication off
+            sshd:       PasswordAuthentication no
             chrony:     Leap status Normal
             Disks:      all <= {{ validation_disk_pressure_max_pct }}%
-            firewalld:  {{ validation_required_firewall_services | join(', ') }}
+            firewalld:  {{ validation_required_firewall_services | join(', ') }} allowed
+            Groups:     {{ validation_required_groups | join(', ') }}
+            Sudoers:    {{ validation_sudoers_files | map('basename') | join(', ') }}
+            Auditd:     rules file present, keys {{ validation_required_audit_keys | join(', ') }} active

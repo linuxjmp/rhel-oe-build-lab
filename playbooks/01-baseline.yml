@@ -1,8 +1,38 @@
 ---
-- name: Apply baseline hardening
+# 01-baseline.yml
+#
+# Applies the complete baseline to every host in [production].
+# Roles run in this order — each builds on the previous:
+#
+#   baseline_hardening  — packages, SELinux, firewalld, auditd, chrony, SSH
+#   users               — groups, user accounts, SSH keys, sudoers
+#   firewall            — declarative firewalld rule set
+#   auditd              — audit rule set (99-lab-audit.rules)
+#
+# Usage
+# -----
+#   # Always syntax-check and dry-run before applying:
+#   ansible-playbook playbooks/01-baseline.yml --syntax-check
+#   ansible-playbook playbooks/01-baseline.yml --check --diff
+#
+#   # Apply to the full fleet:
+#   ansible-playbook playbooks/01-baseline.yml
+#
+#   # Apply to a single host (useful after adding a new server):
+#   ansible-playbook playbooks/01-baseline.yml --limit servera
+#
+#   # Apply only a specific concern (e.g. after changing auditd rules):
+#   ansible-playbook playbooks/01-baseline.yml --tags auditd
+#
+# After this playbook completes, run the validation playbook:
+#   ansible-playbook playbooks/03-validation.yml
+
+- name: Apply baseline to production fleet
   hosts: production
   become: true
 
   roles:
-    - baseline_hardening
-
+    - role: baseline_hardening
+    - role: users
+    - role: firewall
+    - role: auditd

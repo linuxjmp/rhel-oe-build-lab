@@ -1,0 +1,135 @@
+---
+# tasks/main.yml — patching
+#
+# Quarterly patching workflow:
+#   1. Snapshot pre-update state (kernel, packages, services)
+#   2. Refresh package metadata
+#   3. Apply updates (security or full, based on patching_update_mode)
+#   4. Determine whether a reboot is required
+#   5. Optionally reboot (if patching_allow_reboot is true)
+#   6. Snapshot post-update state
+#   7. Expose results via set_fact for report templates
+#
+# Calling playbooks can then access:
+#   patching_pre_kernel, patching_post_kernel
+#   patching_pre_packages, patching_post_packages
+#   patching_pre_services, patching_post_services
+#   patching_update_result
+#   patching_reboot_required  (bool)
+
+# ---------- Pre-update snapshot ----------
+
+- name: Capture pre-update kernel version
+  ansible.builtin.command:
+    cmd: uname -r
+  register: _patching_pre_kernel
+  changed_when: false
+  check_mode: false
+  tags: [patching, snapshot]
+
+- name: Capture pre-update installed package list
+  ansible.builtin.shell:
+    cmd: rpm -qa | sort
+  register: _patching_pre_packages
+  changed_when: false
+  check_mode: false
+  tags: [patching, snapshot]
+
+- name: Capture pre-update baseline service state
+  ansible.builtin.command:
+    cmd: "systemctl is-active {{ patching_baseline_services | join(' ') }}"
+  register: _patching_pre_services
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: [patching, snapshot]
+
+# ---------- Apply updates ----------
+
+- name: Refresh dnf metadata cache
+  ansible.builtin.dnf:
+    update_cache: true
+  tags: [patching, update]
+
+- name: "Apply {{ patching_update_mode }} updates"
+  ansible.builtin.dnf:
+    name: '*'
+    state: latest
+    security: "{{ patching_update_mode == 'security' }}"
+  register: _patching_update_result
+  tags: [patching, update]
+
+# ---------- Reboot decision ----------
+
+- name: Check whether a reboot is required
+  ansible.builtin.command:
+    cmd: dnf -q needs-restarting -r
+  register: _patching_reboot_check
+  changed_when: false
+  # rc=0 means no reboot needed; rc=1 means reboot needed
+  failed_when: _patching_reboot_check.rc not in [0, 1]
+  check_mode: false
+  tags: [patching, reboot]
+
+- name: Reboot host (patching_allow_reboot is true and reboot is needed)
+  ansible.builtin.reboot:
+    msg: "Reboot triggered by patching role after quarterly update"
+    reboot_timeout: "{{ patching_reboot_timeout }}"
+  when:
+    - patching_allow_reboot | bool
+    - _patching_reboot_check.rc == 1
+  tags: [patching, reboot]
+
+- name: Warn that a reboot is required but not automated
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }} requires a reboot to complete patching.
+      Set patching_allow_reboot: true to automate this, or reboot
+      manually and re-run the validation playbook.
+  when:
+    - not (patching_allow_reboot | bool)
+    - _patching_reboot_check.rc == 1
+  tags: [patching, reboot]
+
+# ---------- Post-update snapshot ----------
+
+- name: Capture post-update kernel version
+  ansible.builtin.command:
+    cmd: uname -r
+  register: _patching_post_kernel
+  changed_when: false
+  check_mode: false
+  tags: [patching, snapshot]
+
+- name: Capture post-update installed package list
+  ansible.builtin.shell:
+    cmd: rpm -qa | sort
+  register: _patching_post_packages
+  changed_when: false
+  check_mode: false
+  tags: [patching, snapshot]
+
+- name: Capture post-update baseline service state
+  ansible.builtin.command:
+    cmd: "systemctl is-active {{ patching_baseline_services | join(' ') }}"
+  register: _patching_post_services
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags: [patching, snapshot]
+
+# ---------- Expose results ----------
+# set_fact makes these variables available to the calling playbook,
+# including tasks that delegate_to: localhost (e.g. report rendering).
+
+- name: Publish patching results as host facts
+  ansible.builtin.set_fact:
+    patching_pre_kernel: "{{ _patching_pre_kernel.stdout | trim }}"
+    patching_pre_packages: "{{ _patching_pre_packages.stdout_lines }}"
+    patching_pre_services: "{{ _patching_pre_services.stdout | trim }}"
+    patching_post_kernel: "{{ _patching_post_kernel.stdout | trim }}"
+    patching_post_packages: "{{ _patching_post_packages.stdout_lines }}"
+    patching_post_services: "{{ _patching_post_services.stdout | trim }}"
+    patching_update_result: "{{ _patching_update_result }}"
+    patching_reboot_required: "{{ _patching_reboot_check.rc == 1 }}"
+  tags: [patching]

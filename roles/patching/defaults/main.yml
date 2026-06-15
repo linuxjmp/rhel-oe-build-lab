@@ -1,0 +1,35 @@
+---
+# defaults/main.yml — patching
+#
+# Controls the quarterly patching workflow.
+
+# What to update:
+#   full     — all available packages (dnf update)
+#   security — security errata only (dnf update --security)
+#
+# 'full' is the lab default. In production you might start with
+# 'security' and promote to 'full' after additional testing.
+patching_update_mode: full
+
+# Allow the role to reboot automatically when the OS reports a
+# reboot is needed (e.g. after a kernel update).
+#
+# false (default): the role records the reboot-required status and
+#   continues. The operator reboots manually, or the playbook can
+#   include a separate reboot task gated on the status.
+#
+# true: the role reboots immediately and waits for the host to
+#   come back. Appropriate for fully automated pipelines. Not
+#   appropriate during a live-traffic maintenance window.
+patching_allow_reboot: false
+
+# Seconds to wait for the host to return after a reboot.
+patching_reboot_timeout: 600
+
+# Baseline services to check before and after patching.
+# Extend this list for application-specific services.
+patching_baseline_services:
+  - firewalld
+  - auditd
+  - chronyd
+  - sshd
