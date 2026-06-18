@@ -1,0 +1,65 @@
+name: ansible-ci
+
+# Static checks for the rhel-oe-build-lab control repo. These run
+# without any managed hosts: they prove the playbooks parse, the
+# inventory is well-formed, and the roles pass ansible-lint. They do
+# NOT apply anything to a fleet — that is always a deliberate, manual
+# operation against real hosts.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  syntax-check:
+    name: Syntax check (required)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ansible-core
+        run: pip install "ansible-core>=2.16,<2.18"
+
+      - name: Install required collections
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Syntax-check all playbooks
+        run: |
+          set -e
+          for pb in \
+            playbooks/01-baseline.yml \
+            playbooks/02-quarterly-update.yml \
+            playbooks/03-validation.yml \
+            playbooks/04-rollback-checklist.yml \
+            playbooks/05-schedule-validation.yml; do
+            echo "::group::syntax-check $pb"
+            ansible-playbook "$pb" --syntax-check
+            echo "::endgroup::"
+          done
+
+  lint:
+    name: ansible-lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install ansible-lint
+        run: pip install ansible-lint
+
+      - name: Install required collections
+        run: ansible-galaxy collection install -r requirements.yml
+
+      - name: Run ansible-lint
+        run: ansible-lint

@@ -28,7 +28,7 @@ Sanity baseline:
 
 ```bash
 ping -c 2 <host>
-ssh -v root@<host> 'true'
+ssh -v admin@<host> 'true'
 ```
 
 ### Symptom: `sudo: a password is required`
@@ -176,7 +176,7 @@ journalctl --boot=-1 -p err
 ```
 
 Document the regression in the change record and execute the
-rollback per `playbooks/04-rollback-checklist.yml` (once defined).
+rollback per `playbooks/04-rollback-checklist.yml`.
 
 ---
 
@@ -415,7 +415,7 @@ adding entries to `/etc/hosts` on the control node is the fastest fix:
 Test from the control node before trusting Ansible:
 
 ```bash
-ssh root@servera 'hostname'
+ssh admin@servera 'hostname'
 ```
 
 ### Symptom: host resolves but `ansible -m ping` fails with timeout
@@ -424,7 +424,7 @@ The managed host may be filtering ICMP (ping) but that does not affect
 SSH. Ansible uses SSH, not ICMP. The relevant check is:
 
 ```bash
-ssh -v root@<host> 'true'
+ssh -v admin@<host> 'true'
 ```
 
 Look for the SSH-level error in the verbose output.

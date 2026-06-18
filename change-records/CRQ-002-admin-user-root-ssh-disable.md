@@ -4,12 +4,12 @@
 |-----------------|--------------------------------------------------------------------|
 | Change ID       | CRQ-002                                                            |
 | Title           | Create dedicated admin user; disable direct root SSH login         |
-| Owner           | TBD                                                                |
-| Date submitted  | TBD                                                                |
-| Scheduled start | TBD                                                                |
-| Scheduled end   | TBD                                                                |
+| Owner           | linuxjmp                                                           |
+| Date submitted  | 2026-06-15                                                        |
+| Scheduled start | 2026-06-15                                                        |
+| Scheduled end   | 2026-06-15                                                        |
 | Risk level      | High                                                               |
-| Status          | Planned                                                            |
+| Status          | Completed                                                          |
 
 ---
 
@@ -136,8 +136,12 @@ Expected output: `uid=NNNN(admin)` and `(ALL) NOPASSWD: ALL` in `sudo -l`.
 
 ```yaml
 # group_vars/all.yml
-baseline_sshd_permit_root_login: "no"
+ssh_permit_root_login: "no"
 ```
+
+> Note: the SSH posture was originally a `baseline_hardening` default
+> but was later split into a dedicated `ssh` role under CRQ-004. The
+> variable is now `ssh_permit_root_login`, consumed by the `ssh` role.
 
 Apply the SSH change:
 
@@ -223,23 +227,25 @@ Notify any other operators or team members:
 
 ## 9. Results
 
-_To be completed after the change is executed._
-
 | Field            | Value |
 |------------------|-------|
-| Actual start     |       |
-| Actual end       |       |
-| Outcome          |       |
-| Hosts succeeded  |       |
-| Hosts deferred   |       |
-| Attached output  |       |
-| Git commit / tag |       |
+| Actual start     | 2026-06-15 |
+| Actual end       | 2026-06-15 |
+| Outcome          | Success — `admin` created fleet-wide, inventory switched to `ansible_user=admin`, direct root SSH and SSH password auth disabled. |
+| Hosts succeeded  | servera, serverb, serverc, serverd |
+| Hosts deferred   | None |
+| Attached output  | [`reports/validation-20260617.txt`](../reports/validation-20260617.txt) — `sshd: PasswordAuthentication no`, `ok=21 failed=0` per host |
+| Git commit / tag | `9b6a82b` (admin user + root disable); SSH posture later split to the `ssh` role in `c0d911c` (CRQ-004) |
+
+The latest validation run confirms the end state holds: every host
+reports `PasswordAuthentication no` and passes all 21 checks with zero
+failures. Direct root SSH login is rejected.
 
 ---
 
 ## 10. References
 
-- [architecture.md — Current Deviation](../architecture.md)
+- [architecture.md — Access Model (CRQ-002)](../architecture.md)
 - [roles/baseline_hardening/README.md — Root Login Default](../roles/baseline_hardening/README.md)
 - [roles/users/README.md](../roles/users/README.md)
 - [docs/lessons-learned.md](../docs/lessons-learned.md)

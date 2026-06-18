@@ -163,10 +163,10 @@ Every assert either passes with a `success_msg` or fails with a
 ends with:
 
 ```
-servera : ok=13  changed=0  unreachable=0  failed=0
-serverb : ok=13  changed=0  unreachable=0  failed=0
-serverc : ok=13  changed=0  unreachable=0  failed=0
-serverd : ok=13  changed=0  unreachable=0  failed=0
+servera : ok=21  changed=0  unreachable=0  failed=0
+serverb : ok=21  changed=0  unreachable=0  failed=0
+serverc : ok=21  changed=0  unreachable=0  failed=0
+serverd : ok=21  changed=0  unreachable=0  failed=0
 ```
 
 ### Known False Positive: iso9660 Mounts

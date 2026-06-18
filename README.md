@@ -47,6 +47,26 @@ way a real operations team would.
 See [architecture.md](architecture.md) for the component diagram,
 data flow, security posture, and failure modes.
 
+### Lifecycle at a glance
+
+```
+Control node (Ansible + Git)
+        │
+        ▼
+servera · serverb · serverc · serverd
+        │
+        ▼
+ Baseline ─▶ Patch ─▶ Validate ─▶ Report ─▶ Rollback checklist
+ (01)        (02)      (03)        (reports/)  (04, on demand)
+```
+
+> **Security posture:** The fleet is accessed over SSH key auth as a
+> dedicated `admin` user. Direct root SSH and SSH password
+> authentication are disabled (CRQ-002); `admin` escalates via a
+> passwordless `sudo` drop-in that auditd records. SELinux is
+> Enforcing and firewalld is restricted to the minimum service set on
+> every host.
+
 ---
 
 ## Repository Layout
@@ -98,7 +118,7 @@ rhel-oe-build-lab/
 - **OS:** RHEL 8/9 or compatible (Rocky Linux, AlmaLinux)
 - **Control node:** Any Linux host with `ansible-core` and `git`
 - **Managed hosts:** `servera`, `serverb`, `serverc`, `serverd` — reachable by DNS or `/etc/hosts`
-- **Access:** SSH key-based auth from the control node; currently connects as `root` (see [architecture.md § Current Deviation](architecture.md))
+- **Access:** SSH key-based auth from the control node as the dedicated `admin` user; direct root SSH and password authentication are disabled (CRQ-002)
 - **Collections:** `ansible.posix` — installed via `ansible-galaxy collection install -r requirements.yml`
 
 ---
@@ -246,11 +266,15 @@ account and key exist before root SSH login is disabled.
 
 ```
 PLAY RECAP *****
-servera : ok=19  changed=0  unreachable=0  failed=0
-serverb : ok=19  changed=0  unreachable=0  failed=0
-serverc : ok=19  changed=0  unreachable=0  failed=0
-serverd : ok=19  changed=0  unreachable=0  failed=0
+servera : ok=21  changed=0  unreachable=0  failed=0
+serverb : ok=21  changed=0  unreachable=0  failed=0
+serverc : ok=21  changed=0  unreachable=0  failed=0
+serverd : ok=21  changed=0  unreachable=0  failed=0
 ```
+
+The full captured run is in
+[`screenshots/validation-output.txt`](screenshots/validation-output.txt)
+and [`reports/validation-20260617.txt`](reports/validation-20260617.txt).
 
 Each `assert` task prints either `PASS —` or `FAIL —` with a
 specific message so deviations are immediately actionable.
@@ -262,9 +286,9 @@ specific message so deviations are immediately actionable.
 | File | What it shows |
 |------|---------------|
 | `screenshots/ansible-ping-success.txt` | Control node reaches all four managed hosts |
-| `screenshots/validation-output.txt` | Validation playbook — all checks passed, 0 failures |
+| `screenshots/validation-output.txt` | Validation playbook — 21 checks per host, 0 failures |
 | `reports/20260606T145955-*.md` | Per-host quarterly update reports (before/after snapshots) |
-| `reports/validation-20260611.txt` | Full fleet validation run with timing |
+| `reports/validation-20260617.txt` | Full fleet validation run with timing |
 | `change-records/CRQ-001-quarterly-oe-update.md` | Complete change record with risk table, results, and lessons learned |
 
 ---
@@ -303,9 +327,19 @@ specific message so deviations are immediately actionable.
 
 ---
 
+## Continuous Integration
+
+[`.github/workflows/ansible-ci.yml`](.github/workflows/ansible-ci.yml)
+runs on every push and pull request to `main`. It installs the pinned
+collections, syntax-checks all five playbooks, and runs `ansible-lint`
+so structural regressions are caught before they reach the fleet.
+
+---
+
 ## Docs
 
 - [Architecture](architecture.md)
 - [Validation Guide](docs/validation-guide.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Lessons Learned](docs/lessons-learned.md)
+- [LinkedIn Summary](docs/linkedin-summary.md)

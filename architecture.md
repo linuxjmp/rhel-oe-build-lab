@@ -76,13 +76,15 @@ A change moves through eight stages. Every stage has a paper trail.
 | chrony      | Enabled, time sync against trusted NTP sources        |
 | Logging     | journald + rsyslog forwarding (planned in Lab 2)      |
 
-### Current Deviation
+### Access Model (CRQ-002 — complete)
 
-The inventory currently connects as `root` for lab convenience.
-The target state is a dedicated `admin` user created by the
-`users` role, with `baseline_hardening` then disabling direct
-root SSH. This transition will be performed as a tracked change
-(future `CRQ-002`).
+The inventory connects as the dedicated `admin` user over SSH key
+auth. The `users` role creates `admin` and installs its authorized
+key and a passwordless `sudo` drop-in; the `ssh` role (split out
+under CRQ-004) then disables direct root SSH and SSH password
+authentication. Ansible escalates with `become: sudo`. The migration
+away from root SSH is recorded in
+[`change-records/CRQ-002-admin-user-root-ssh-disable.md`](change-records/CRQ-002-admin-user-root-ssh-disable.md).
 
 ---
 

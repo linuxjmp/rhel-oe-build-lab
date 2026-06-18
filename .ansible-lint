@@ -1,0 +1,23 @@
+# ansible-lint configuration for rhel-oe-build-lab.
+#
+# The validation and patching workflows deliberately shell out to
+# read-only system commands (getenforce, sshd -T, df, firewall-cmd,
+# chronyc, auditctl, rpm -qa). These are intentional posture probes,
+# not config changes — every one is guarded with `changed_when: false`.
+# The skips below document that choice rather than hide it; everything
+# else is held to the `basic` profile.
+
+profile: basic
+
+exclude_paths:
+  - collections/        # vendored, installed per-operator (gitignored)
+  - .ansible_facts/     # local fact cache
+  - reports/            # captured run evidence, not source
+
+skip_list:
+  # Read-only state probes are intentionally `command`/`shell`; there
+  # is no module that returns getenforce/sshd -T/auditctl output.
+  - command-instead-of-module
+  # `rpm -qa | sort` and the df|awk pipe are read-only and guarded by
+  # changed_when: false; pipefail would add noise without value here.
+  - risky-shell-pipe
