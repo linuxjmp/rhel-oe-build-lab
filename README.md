@@ -284,7 +284,7 @@ specific message so deviations are immediately actionable.
 - **CRQ-003:** Add inline post-host validation to `02-quarterly-update.yml` to gate serial rollout
 - **Separate roles:** Split `users/`, `firewall/`, and `auditd/` concerns further (e.g., separate `ssh` role)
 - **Scheduled runs:** systemd timer or cron job to run `03-validation.yml` weekly for drift detection
-- **Lab 2:** Prometheus/Grafana/node_exporter monitoring with simulated incidents
+
 
 ---
 
