@@ -1,0 +1,18 @@
+{{ ansible_managed | comment('plain', prefix='# ', postfix='') }}
+# Source: scheduling/rhel-oe-validation.timer.j2
+# Deployed by playbooks/05-schedule-validation.yml — edits overwritten.
+
+[Unit]
+Description=Weekly rhel-oe-build-lab drift detection
+Documentation=file://{{ rhel_oe_repo_dir }}/README.md
+
+[Timer]
+# Mondays at 06:00 local time. Persistent=true means a run missed
+# while the control node was off fires at next boot, so a powered-down
+# weekend doesn't silently skip a drift check.
+OnCalendar={{ rhel_oe_validation_oncalendar }}
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

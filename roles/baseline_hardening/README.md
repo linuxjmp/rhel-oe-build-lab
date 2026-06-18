@@ -15,7 +15,10 @@ all other roles build on top of the state it establishes.
 | Starts and enables `chronyd` | Time sync operational |
 | Deploys MOTD login banner | `/etc/motd` showing host name and managed-system notice |
 | Deploys `wheel-nopass` sudoers | Passwordless sudo for `wheel` group |
-| Deploys SSH drop-in config | Controls `PermitRootLogin` and `PasswordAuthentication` |
+
+> **SSH posture moved out (CRQ-004):** `PermitRootLogin` and
+> `PasswordAuthentication` are now managed by the dedicated `ssh`
+> role. See `roles/ssh/`.
 
 ## Variables
 
@@ -25,28 +28,12 @@ all other roles build on top of the state it establishes.
 | `baseline_selinux_state` | `enforcing` | SELinux mode |
 | `baseline_firewalld_default_zone` | `public` | firewalld default zone |
 | `baseline_firewalld_services` | `[ssh]` | Services allowed at baseline |
-| `baseline_sshd_permit_root_login` | `yes` | Root SSH login (see note below) |
-| `baseline_sshd_password_authentication` | `no` | SSH password auth |
 | `baseline_motd_enabled` | `true` | Deploy MOTD login banner to `/etc/motd` |
-
-### Root Login Default
-
-`baseline_sshd_permit_root_login` defaults to `yes` because the lab
-inventory currently connects as `root`. Setting it to `no` before the
-`users` role has created an admin account with SSH keys will lock you
-out of the managed hosts.
-
-**Safe migration path (tracked as CRQ-002):**
-1. Run the `users` role to create an admin account with your SSH key.
-2. Test SSH login as the admin user from the control node.
-3. Set `baseline_sshd_permit_root_login: "no"` in `group_vars/all.yml`.
-4. Re-apply the baseline. Root SSH is now disabled.
 
 ## Handlers
 
-| Handler | Trigger |
-|---------|---------|
-| `Restart sshd` | SSH drop-in config changes |
+This role currently defines no handlers. (`Restart sshd` moved to the
+`ssh` role with the sshd drop-in.)
 
 ## Tags
 
@@ -59,18 +46,13 @@ out of the managed hosts.
 | `chrony` | chronyd service |
 | `motd` | MOTD login banner |
 | `sudo` | wheel sudoers drop-in |
-| `ssh` | SSH drop-in config |
-
-```bash
-# Example: re-apply only the SSH config
-ansible-playbook playbooks/01-baseline.yml --tags ssh
-```
 
 ## Relationship to Other Roles
 
 This role ensures services are **running**. The dedicated roles
 extend and specialize:
 
+- `ssh` — manages sshd posture (root login, password auth)
 - `firewall` — manages which services/ports are allowed
 - `auditd` — deploys the audit rule set
 - `users` — creates accounts and manages the admin sudoers drop-in

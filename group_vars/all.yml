@@ -5,17 +5,20 @@
 # live in roles/<role>/defaults/main.yml — only override here when a
 # value should be the same across the whole estate AND differ from
 # the role default.
-#
-# Examples (kept commented until needed):
-#
-# Tighten SSH for the whole fleet (do this only after the admin user
-# is in place — see planned change record CRQ-002):
-# baseline_sshd_permit_root_login: "no"
-#
-# Use a different default firewalld zone:
-# baseline_firewalld_default_zone: internal
-#
-# Add a service to the baseline firewall allow list:
-# baseline_firewalld_services:
-#   - ssh
-#   - cockpit
+
+# CRQ-002: dedicated admin user (key-based, no password).
+# Created on all hosts by the users role in 01-baseline.yml.
+users_list:
+  - name: admin
+    comment: "Lab Admin Account"
+    groups:
+      - admin
+      - wheel
+    shell: /bin/bash
+    ssh_authorized_keys:
+      - "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOmNeH7j7M62hxy7WTncpdpImsWarqm/Z4CHGCi1wg+U root@rhce-control"
+
+# CRQ-002: disable direct root SSH once admin key login is verified.
+# Consumed by the ssh role (split out under CRQ-004) and applied by
+# 01-baseline.yml --tags ssh after key login is confirmed working.
+ssh_permit_root_login: "no"

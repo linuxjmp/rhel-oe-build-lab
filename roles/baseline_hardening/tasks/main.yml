@@ -2,8 +2,13 @@
 # tasks/main.yml — baseline_hardening
 #
 # Brings a RHEL-family host to the lab's security and operational
-# baseline. Order matters: SSH posture is enforced LAST so any
-# earlier failure leaves remote access untouched.
+# baseline: packages, SELinux, firewalld, auditd, chrony, MOTD, and
+# the wheel sudo policy.
+#
+# SSH posture was split into the dedicated `ssh` role (CRQ-004). The
+# baseline no longer touches sshd; 01-baseline.yml runs the ssh role
+# after the users role so the admin account exists before root login
+# is disabled.
 
 - name: Install baseline packages
   ansible.builtin.dnf:
@@ -81,14 +86,3 @@
     mode: '0440'
     validate: 'visudo -cf %s'
   tags: [sudo]
-
-- name: Deploy SSH baseline drop-in config
-  ansible.builtin.template:
-    src: sshd_baseline.conf.j2
-    dest: /etc/ssh/sshd_config.d/00-baseline.conf
-    owner: root
-    group: root
-    mode: '0600'
-    validate: '/usr/sbin/sshd -t -f %s'
-  notify: Restart sshd
-  tags: [ssh]

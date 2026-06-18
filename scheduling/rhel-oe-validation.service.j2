@@ -1,0 +1,17 @@
+{{ ansible_managed | comment('plain', prefix='# ', postfix='') }}
+# Source: scheduling/rhel-oe-validation.service.j2
+# Deployed by playbooks/05-schedule-validation.yml — edits overwritten.
+
+[Unit]
+Description=rhel-oe-build-lab weekly drift detection (03-validation.yml)
+Documentation=file://{{ rhel_oe_repo_dir }}/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User={{ rhel_oe_run_user }}
+WorkingDirectory={{ rhel_oe_repo_dir }}
+ExecStart={{ rhel_oe_bin_dir }}/rhel-oe-validation.sh
+# Drift detection is low priority — don't compete with real work.
+Nice=10

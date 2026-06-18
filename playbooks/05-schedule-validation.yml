@@ -1,0 +1,122 @@
+---
+# 05-schedule-validation.yml
+#
+# Installs a systemd timer on the CONTROL NODE that runs the
+# validation playbook (03-validation.yml) once a week for drift
+# detection (CRQ-005). This is control-node infrastructure, so the
+# play targets localhost — it does not touch the managed fleet.
+#
+# What it installs:
+#   /usr/local/bin/rhel-oe-validation.sh   wrapper (runs + logs)
+#   /etc/systemd/system/rhel-oe-validation.service   oneshot unit
+#   /etc/systemd/system/rhel-oe-validation.timer     weekly schedule
+#
+# Usage
+# -----
+#   # Install / update the timer (needs sudo on the control node):
+#   ansible-playbook playbooks/05-schedule-validation.yml --ask-become-pass
+#
+#   # Confirm it is scheduled:
+#   systemctl list-timers rhel-oe-validation.timer
+#
+#   # Run an on-demand drift check immediately:
+#   sudo systemctl start rhel-oe-validation.service
+#   journalctl -u rhel-oe-validation.service --no-pager
+#
+#   # Remove the schedule:
+#   ansible-playbook playbooks/05-schedule-validation.yml -e schedule_state=absent
+
+- name: Install weekly drift-detection timer on the control node
+  hosts: localhost
+  connection: local
+  gather_facts: true
+  become: true
+
+  vars:
+    # Repo root, derived from this playbook's location.
+    rhel_oe_repo_dir: "{{ playbook_dir | dirname }}"
+    # Account systemd runs the check as. Defaults to whoever installs
+    # it; override with -e rhel_oe_run_user=ansiblesvc in a real setup.
+    rhel_oe_run_user: "{{ lookup('env', 'SUDO_USER') | default(lookup('env', 'USER'), true) | default('root', true) }}"
+    rhel_oe_bin_dir: /usr/local/bin
+    # systemd OnCalendar expression for the weekly run.
+    rhel_oe_validation_oncalendar: "Mon *-*-* 06:00:00"
+    # present = install/enable, absent = remove.
+    schedule_state: present
+
+    _units_dir: /etc/systemd/system
+    _wrapper_path: "{{ rhel_oe_bin_dir }}/rhel-oe-validation.sh"
+
+  tasks:
+
+    # ---------- Install ----------
+
+    - name: Deploy the drift-detection wrapper script
+      ansible.builtin.template:
+        src: "{{ rhel_oe_repo_dir }}/scheduling/rhel-oe-validation.sh.j2"
+        dest: "{{ _wrapper_path }}"
+        owner: root
+        group: root
+        mode: '0755'
+      when: schedule_state == 'present'
+
+    - name: Deploy the systemd service and timer units
+      ansible.builtin.template:
+        src: "{{ rhel_oe_repo_dir }}/scheduling/{{ item }}.j2"
+        dest: "{{ _units_dir }}/{{ item }}"
+        owner: root
+        group: root
+        mode: '0644'
+      loop:
+        - rhel-oe-validation.service
+        - rhel-oe-validation.timer
+      when: schedule_state == 'present'
+      notify: Reload systemd
+
+    - name: Flush handlers so units are reloaded before enabling
+      ansible.builtin.meta: flush_handlers
+
+    - name: Enable and start the weekly timer
+      ansible.builtin.systemd:
+        name: rhel-oe-validation.timer
+        enabled: true
+        state: started
+      when: schedule_state == 'present'
+
+    - name: Show the next scheduled run
+      ansible.builtin.command:
+        cmd: systemctl list-timers rhel-oe-validation.timer --no-pager
+      register: _timers
+      changed_when: false
+      when: schedule_state == 'present'
+
+    - name: Report schedule
+      ansible.builtin.debug:
+        msg: "{{ _timers.stdout_lines }}"
+      when: schedule_state == 'present'
+
+    # ---------- Remove ----------
+
+    - name: Stop and disable the timer
+      ansible.builtin.systemd:
+        name: rhel-oe-validation.timer
+        enabled: false
+        state: stopped
+      failed_when: false
+      when: schedule_state == 'absent'
+
+    - name: Remove the units and wrapper
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ _units_dir }}/rhel-oe-validation.timer"
+        - "{{ _units_dir }}/rhel-oe-validation.service"
+        - "{{ _wrapper_path }}"
+      when: schedule_state == 'absent'
+      notify: Reload systemd
+
+  handlers:
+    - name: Reload systemd
+      ansible.builtin.systemd:
+        daemon_reload: true

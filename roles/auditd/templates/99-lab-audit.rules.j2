@@ -52,7 +52,7 @@
 # Key 'time_change': ausearch -k time_change
 
 -a always,exit -F arch=b64 -S adjtimex -S settimeofday -k time_change
--a always,exit -F arch=b32 -S adjtimex -S settimeofday -S stime -k time_change
+-a always,exit -F arch=b32 -S adjtimex -S settimeofday -k time_change
 -a always,exit -F arch=b64 -S clock_settime -k time_change
 -a always,exit -F arch=b32 -S clock_settime -k time_change
 -w /etc/localtime -p wa -k time_change
@@ -68,14 +68,10 @@
 # High-volume in busy environments — tune the auid filter if noisy.
 # Key 'access_failure': ausearch -k access_failure
 
--a always,exit -F arch=b64 -S open -S creat -S truncate -S ftruncate -S openat \
-  -F exit=-EACCES -F auid>=1000 -F auid!=-1 -k access_failure
--a always,exit -F arch=b32 -S open -S creat -S truncate -S ftruncate -S openat \
-  -F exit=-EACCES -F auid>=1000 -F auid!=-1 -k access_failure
--a always,exit -F arch=b64 -S open -S creat -S truncate -S ftruncate -S openat \
-  -F exit=-EPERM  -F auid>=1000 -F auid!=-1 -k access_failure
--a always,exit -F arch=b32 -S open -S creat -S truncate -S ftruncate -S openat \
-  -F exit=-EPERM  -F auid>=1000 -F auid!=-1 -k access_failure
+-a always,exit -F arch=b64 -S open -S creat -S truncate -S ftruncate -S openat -F exit=-EACCES -F auid>=1000 -F auid!=-1 -k access_failure
+-a always,exit -F arch=b32 -S open -S creat -S truncate -S ftruncate -S openat -F exit=-EACCES -F auid>=1000 -F auid!=-1 -k access_failure
+-a always,exit -F arch=b64 -S open -S creat -S truncate -S ftruncate -S openat -F exit=-EPERM -F auid>=1000 -F auid!=-1 -k access_failure
+-a always,exit -F arch=b32 -S open -S creat -S truncate -S ftruncate -S openat -F exit=-EPERM -F auid>=1000 -F auid!=-1 -k access_failure
 
 # ---------- Lock rules (optional) ----------
 # When auditd_lock_rules is true, rules cannot be changed without

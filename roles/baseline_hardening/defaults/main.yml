@@ -20,14 +20,9 @@ baseline_firewalld_default_zone: public
 baseline_firewalld_services:
   - ssh
 
-# SSH posture.
-#
-# Default 'yes' preserves current root SSH access so the first apply
-# of this role does NOT lock out the control node (the inventory
-# still connects as root). The target state is 'no', flipped only
-# after the admin user is in place — tracked as CRQ-002.
-baseline_sshd_permit_root_login: "yes"
-baseline_sshd_password_authentication: "no"
+# SSH posture moved to the dedicated `ssh` role (CRQ-004).
+# See roles/ssh/defaults/main.yml for ssh_permit_root_login and
+# ssh_password_authentication.
 
 # MOTD login banner.
 # When true, deploys templates/motd.j2 to /etc/motd so every SSH

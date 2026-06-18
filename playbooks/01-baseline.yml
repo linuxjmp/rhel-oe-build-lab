@@ -4,8 +4,10 @@
 # Applies the complete baseline to every host in [production].
 # Roles run in this order — each builds on the previous:
 #
-#   baseline_hardening  — packages, SELinux, firewalld, auditd, chrony, SSH
+#   baseline_hardening  — packages, SELinux, firewalld, auditd, chrony, sudo
 #   users               — groups, user accounts, SSH keys, sudoers
+#   ssh                 — sshd posture (runs AFTER users so the admin
+#                         key exists before root login is disabled)
 #   firewall            — declarative firewalld rule set
 #   auditd              — audit rule set (99-lab-audit.rules)
 #
@@ -34,5 +36,6 @@
   roles:
     - role: baseline_hardening
     - role: users
+    - role: ssh
     - role: firewall
     - role: auditd

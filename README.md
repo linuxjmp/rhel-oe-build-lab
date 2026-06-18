@@ -59,22 +59,29 @@ rhel-oe-build-lab/
 ├── requirements.yml                  # Collection dependencies
 │
 ├── roles/
-│   ├── baseline_hardening/           # SELinux, firewalld, auditd, chrony, SSH
+│   ├── baseline_hardening/           # SELinux, firewalld, auditd, chrony, sudo
 │   ├── users/                        # Groups, users, SSH keys, sudoers
+│   ├── ssh/                          # sshd posture drop-in (split out, CRQ-004)
 │   ├── firewall/                     # Declarative firewalld rule management
 │   ├── auditd/                       # Audit rules (99-lab-audit.rules)
 │   └── patching/                     # Quarterly update workflow + facts
 │
 ├── playbooks/
 │   ├── 01-baseline.yml               # Apply full baseline to fleet
-│   ├── 02-quarterly-update.yml       # Patch + report
+│   ├── 02-quarterly-update.yml       # Patch + post-patch gate + report
 │   ├── 03-validation.yml             # Assert expected end state
 │   ├── 04-rollback-checklist.yml     # Safe guided rollback (single host)
+│   ├── 05-schedule-validation.yml    # Install weekly drift-detection timer
 │   └── templates/
 │       └── quarterly_report.md.j2   # Per-host update report template
 │
+├── scheduling/                       # systemd timer/service for drift detection
 ├── change-records/
-│   └── CRQ-001-quarterly-oe-update.md
+│   ├── CRQ-001-quarterly-oe-update.md
+│   ├── CRQ-002-admin-user-root-ssh-disable.md
+│   ├── CRQ-003-quarterly-post-patch-gate.md
+│   ├── CRQ-004-split-ssh-role.md
+│   └── CRQ-005-scheduled-drift-detection.md
 │
 ├── reports/                          # Per-host patch reports (git-tracked)
 ├── screenshots/                      # Portfolio evidence
@@ -223,11 +230,15 @@ ansible-playbook playbooks/03-validation.yml --limit servera
 
 | Role | Manages |
 |------|---------|
-| `baseline_hardening` | Packages, SELinux, firewalld, auditd, chrony, SSH drop-in, wheel sudoers |
+| `baseline_hardening` | Packages, SELinux, firewalld, auditd, chrony, MOTD, wheel sudoers |
 | `users` | Groups, user accounts, SSH authorized keys, admin sudoers drop-in, break-glass account |
+| `ssh` | sshd posture drop-in: `PermitRootLogin`, `PasswordAuthentication` (validated with `sshd -t` before write) |
 | `firewall` | Declarative firewalld zone, services, and ports |
 | `auditd` | Audit rules: identity, sudo, SSH config, time, hostname, failed access |
 | `patching` | Pre/post snapshots, dnf update, reboot check, published facts for reports |
+
+The `ssh` role runs after `users` in `01-baseline.yml` so the admin
+account and key exist before root SSH login is disabled.
 
 ---
 
@@ -260,7 +271,7 @@ specific message so deviations are immediately actionable.
 
 ## What This Project Proves
 
-1. **Role design:** Five roles with clear responsibilities, sane defaults, and complete documentation.
+1. **Role design:** Six roles with clear responsibilities, sane defaults, and complete documentation.
 2. **Idempotency:** Every role and playbook can be re-applied without side effects.
 3. **Change discipline:** Syntax-check → dry-run → apply → validate is the only workflow.
 4. **Safety by default:** Destructive operations (reboot, rollback) require explicit opt-in variables or typed confirmation.
@@ -278,13 +289,17 @@ specific message so deviations are immediately actionable.
 
 ---
 
+## Completed Improvements
+
+- **CRQ-002 ✅** Dedicated `admin` user via the `users` role; root SSH disabled (`ssh_permit_root_login: "no"` in `group_vars/all.yml`).
+- **CRQ-003 ✅** Inline post-patch health gate in `02-quarterly-update.yml` — a degraded host halts the serial rollout before the next host.
+- **CRQ-004 ✅** SSH posture split out of `baseline_hardening` into a dedicated `ssh` role, ordered after `users`.
+- **CRQ-005 ✅** Weekly `systemd` timer (`05-schedule-validation.yml`) runs `03-validation.yml` for drift detection.
+
 ## Planned Improvements
 
-- **CRQ-002:** Create a dedicated `admin` user via the `users` role and disable root SSH in `baseline_hardening`
-- **CRQ-003:** Add inline post-host validation to `02-quarterly-update.yml` to gate serial rollout
-- **Separate roles:** Split `users/`, `firewall/`, and `auditd/` concerns further (e.g., separate `ssh` role)
-- **Scheduled runs:** systemd timer or cron job to run `03-validation.yml` weekly for drift detection
-
+- **Alerting:** `OnFailure=` hook on the drift-detection service to notify on a failed weekly check.
+- **Lab 2:** Prometheus/Grafana/node_exporter monitoring with simulated incidents.
 
 ---
 

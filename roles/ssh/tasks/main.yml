@@ -1,0 +1,23 @@
+---
+# tasks/main.yml — ssh
+#
+# Manages the sshd posture for the fleet via a single managed
+# drop-in under /etc/ssh/sshd_config.d/. The config is validated
+# with `sshd -t` BEFORE it is put in place, so a bad template can
+# never leave a host with an sshd that refuses to start.
+#
+# Ordering note: in 01-baseline.yml this role runs AFTER the users
+# role. That guarantees the admin account and its SSH key exist
+# before this role can disable root login — otherwise flipping
+# PermitRootLogin to 'no' could lock out the control node.
+
+- name: Deploy SSH baseline drop-in config
+  ansible.builtin.template:
+    src: sshd_baseline.conf.j2
+    dest: "{{ ssh_dropin_path }}"
+    owner: root
+    group: root
+    mode: '0600'
+    validate: '/usr/sbin/sshd -t -f %s'
+  notify: Restart sshd
+  tags: [ssh]

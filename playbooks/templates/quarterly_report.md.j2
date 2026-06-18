@@ -6,7 +6,7 @@
 |---------------|--------------------------------------------------|
 | Host          | `{{ inventory_hostname }}`                       |
 | Run timestamp | {{ ansible_date_time.iso8601 }}                  |
-| Operator      | {{ lookup('env', 'USER') | default('unknown') }} |
+| Operator      | {{ ansible_user }}                               |
 | Update mode   | {{ patching_update_mode }}                       |
 | Playbook      | `playbooks/02-quarterly-update.yml`              |
 
@@ -81,6 +81,25 @@ Changed: yes
 Changed: no — no updates were available.
 {% endif %}
 ```
+
+---
+
+## Post-Patch Validation Gate
+
+_Inline health checks run on this host immediately after patching
+(CRQ-003). A failure here halts the serial rollout before the next
+host is touched._
+
+{% set failures = quarterly_validation_failures | default([]) %}
+{% if failures | length == 0 %}
+**Result: PASS** — services active, SELinux Enforcing, no failed units, time sync normal. Safe to continue.
+{% else %}
+**Result: FAIL — rollout halted.** {{ failures | length }} issue(s) found:
+
+```
+{{ failures | join('\n') }}
+```
+{% endif %}
 
 ---
 

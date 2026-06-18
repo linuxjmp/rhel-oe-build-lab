@@ -1,7 +1,6 @@
 ---
 # handlers/main.yml — baseline_hardening
-
-- name: Restart sshd
-  ansible.builtin.service:
-    name: sshd
-    state: restarted
+#
+# The Restart sshd handler moved to the ssh role (CRQ-004) along with
+# the sshd drop-in it serviced. This role currently has no handlers;
+# the file is kept so adding one later needs no restructuring.

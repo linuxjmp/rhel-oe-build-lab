@@ -5,8 +5,17 @@
 # time, and writes a per-host Markdown report to reports/.
 #
 # Flow:
-#   1. patching role  — snapshot → update → reboot check → post-snapshot
-#   2. report task    — renders quarterly_report.md.j2 on localhost
+#   1. patching role   — snapshot → update → reboot check → post-snapshot
+#   2. post-patch gate — inline health checks on the just-patched host
+#   3. report task     — renders quarterly_report.md.j2 on localhost
+#   4. rollout gate    — assert the host is healthy; a failure here
+#                        halts the serial rollout before the next host
+#
+# The gate (CRQ-003) is what makes serial: 1 meaningful — if patching
+# leaves a host with a dead service, a non-enforcing SELinux, broken
+# time sync, or any unit in the failed state, the play stops and the
+# remaining hosts are never touched. The report is still written for
+# the failed host so there is evidence to attach to the change record.
 #
 # Usage
 # -----
@@ -42,6 +51,14 @@
   vars:
     quarterly_reports_dir: "{{ playbook_dir }}/../reports"
 
+    # Services that must still be active on the host after patching.
+    # If any is not 'active', the post-patch gate fails the host.
+    quarterly_gate_services:
+      - firewalld
+      - auditd
+      - chronyd
+      - sshd
+
   pre_tasks:
     - name: Ensure reports directory exists on the control node
       ansible.builtin.file:
@@ -61,8 +78,71 @@
         name: patching
       tags: [patching]
 
+    # ----------------------------------------------------------------
+    # Post-patch health checks (CRQ-003)
+    #
+    # These run on the just-patched host. Each collects state with
+    # failed_when: false so we can assemble a single, readable list of
+    # problems and still render the report before halting the rollout.
+    # ----------------------------------------------------------------
+
+    - name: Collect SELinux state after patching
+      ansible.builtin.command:
+        cmd: getenforce
+      register: q_selinux
+      changed_when: false
+      check_mode: false
+      tags: [gate]
+
+    - name: Collect baseline service activity after patching
+      ansible.builtin.command:
+        cmd: "systemctl is-active {{ item }}"
+      register: q_services
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      loop: "{{ quarterly_gate_services }}"
+      tags: [gate]
+
+    - name: Collect systemd units left in the failed state
+      ansible.builtin.command:
+        cmd: systemctl list-units --state=failed --no-legend --plain
+      register: q_failed_units
+      changed_when: false
+      check_mode: false
+      tags: [gate]
+
+    - name: Collect chrony time-sync status
+      ansible.builtin.command:
+        cmd: chronyc tracking
+      register: q_chrony
+      changed_when: false
+      failed_when: false
+      check_mode: false
+      tags: [gate]
+
+    - name: Assemble the post-patch failure list
+      ansible.builtin.set_fact:
+        quarterly_validation_failures: >-
+          {{
+            (q_services.results
+               | rejectattr('stdout', 'equalto', 'active')
+               | map(attribute='item')
+               | map('regex_replace', '^(.*)$', 'service \1 is not active')
+               | list)
+            + (q_failed_units.stdout_lines
+               | map('regex_replace', '^\s*(\S+).*$', 'unit \1 is in the failed state')
+               | list)
+            + ([] if (q_selinux.stdout | trim == 'Enforcing')
+               else ['SELinux is ' ~ (q_selinux.stdout | trim) ~ ', expected Enforcing'])
+            + ([] if ('Leap status     : Normal' in q_chrony.stdout)
+               else ['chrony Leap status is not Normal (time sync degraded)'])
+          }}
+      tags: [gate]
+
     # Render a per-host Markdown report on the control node using the
-    # patching_* facts published by the role above.
+    # patching_* facts published by the role above. Runs even when the
+    # gate below will fail, so the report exists as evidence.
     - name: Render per-host quarterly update report
       ansible.builtin.template:
         src: quarterly_report.md.j2
@@ -72,3 +152,25 @@
       delegate_to: localhost
       become: false
       tags: [report]
+
+    # ----------------------------------------------------------------
+    # Rollout gate (CRQ-003)
+    #
+    # With serial: 1 and max_fail_percentage: 0, a failed assert here
+    # aborts the whole play, so the next host is never patched. The
+    # report for this host has already been written above.
+    # ----------------------------------------------------------------
+    - name: Gate the rollout on post-patch health
+      ansible.builtin.assert:
+        that:
+          - quarterly_validation_failures | length == 0
+        fail_msg: >-
+          Post-patch validation FAILED on {{ inventory_hostname }} —
+          halting the rollout before the next host.
+          Issues: {{ quarterly_validation_failures | join('; ') }}.
+          See the report in reports/ and run
+          playbooks/04-rollback-checklist.yml --limit {{ inventory_hostname }}.
+        success_msg: >-
+          Post-patch validation passed on {{ inventory_hostname }} —
+          safe to continue to the next host.
+      tags: [gate]

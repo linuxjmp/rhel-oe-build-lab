@@ -1,0 +1,8 @@
+{{ ansible_managed | comment }}
+# Source role: ssh
+# Edits made directly to this file will be overwritten.
+
+PermitRootLogin {{ ssh_permit_root_login }}
+PasswordAuthentication {{ ssh_password_authentication }}
+ChallengeResponseAuthentication no
+UsePAM yes

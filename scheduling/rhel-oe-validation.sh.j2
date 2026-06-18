@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+{{ ansible_managed | comment('plain', prefix='# ', postfix='') }}
+# Source: scheduling/rhel-oe-validation.sh.j2 (deployed by
+# playbooks/05-schedule-validation.yml). Edits here are overwritten.
+#
+# Weekly drift-detection wrapper for rhel-oe-build-lab.
+# Runs 03-validation.yml against the fleet and writes a timestamped
+# log under reports/. Exits non-zero when validation finds drift, so
+# the systemd service goes 'failed' and `systemctl --failed` (or any
+# OnFailure= hook you add) surfaces it.
+
+set -uo pipefail
+
+REPO_DIR="{{ rhel_oe_repo_dir }}"
+LOG_DIR="${REPO_DIR}/reports"
+TS="$(date +%Y%m%dT%H%M%S)"
+LOG="${LOG_DIR}/validation-${TS}.txt"
+
+cd "${REPO_DIR}" || {
+  echo "FATAL: cannot cd to ${REPO_DIR}" >&2
+  exit 2
+}
+
+mkdir -p "${LOG_DIR}"
+
+echo "=== rhel-oe-build-lab drift detection — ${TS} ===" | tee "${LOG}"
+ansible-playbook playbooks/03-validation.yml 2>&1 | tee -a "${LOG}"
+rc=${PIPESTATUS[0]}
+
+if [[ "${rc}" -eq 0 ]]; then
+  echo "RESULT: PASS — no drift detected." | tee -a "${LOG}"
+else
+  echo "RESULT: FAIL — validation exited ${rc}; drift or unreachable host." | tee -a "${LOG}"
+fi
+
+exit "${rc}"

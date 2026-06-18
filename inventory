@@ -5,11 +5,9 @@
 #
 # Notes
 # -----
-# - ansible_user is currently 'root' for lab convenience.
-#   Target state: a dedicated 'admin' user with passwordless sudo,
-#   created by the 'users' role; the baseline_hardening role then
-#   disables root SSH. See architecture.md "Security Posture" and
-#   the planned change record CRQ-002 for the migration.
+# - ansible_user is 'admin' (CRQ-002 complete). The admin account is
+#   created by the users role with a passwordless sudo drop-in.
+#   Root SSH is disabled fleet-wide. See change-records/CRQ-002.
 # - Hostnames assume DNS or /etc/hosts entries on the control node.
 
 [production]
@@ -19,5 +17,5 @@ serverc
 serverd
 
 [all:vars]
-ansible_user=root
+ansible_user=admin
 ansible_become=true

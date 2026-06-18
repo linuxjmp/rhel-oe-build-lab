@@ -1,0 +1,24 @@
+---
+# defaults/main.yml — ssh
+#
+# SSH daemon posture. These were previously baseline_hardening
+# defaults (baseline_sshd_*); they were split into this role as
+# part of CRQ-004 so SSH access policy can be reasoned about and
+# changed on its own.
+#
+# Override in group_vars/ or host_vars/.
+
+# PermitRootLogin. Default 'yes' is deliberately permissive so the
+# FIRST apply of this role onto a fresh host does not lock out a
+# control node that still connects as root. Flip to 'no' (via
+# group_vars/all.yml) only after the admin account is in place and
+# key login has been verified — tracked as CRQ-002.
+ssh_permit_root_login: "yes"
+
+# Key-based auth only. There is no reason to allow password auth on
+# a managed fleet; the users role installs operator keys.
+ssh_password_authentication: "no"
+
+# Where the managed drop-in is written. The '00-' prefix makes it
+# load first so it sets the baseline before any vendor drop-ins.
+ssh_dropin_path: /etc/ssh/sshd_config.d/00-baseline.conf
