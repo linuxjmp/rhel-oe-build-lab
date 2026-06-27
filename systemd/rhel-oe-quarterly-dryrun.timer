@@ -1,0 +1,22 @@
+# rhel-oe-quarterly-dryrun.timer
+#
+# Schedules the quarterly dry-run. This only triggers the --check --diff
+# preview on the canary; it never applies patches. The output is meant
+# to be reviewed by a human ahead of each quarterly change window.
+#
+# Persistent=true means a run missed while the control node was powered
+# off fires at next boot, so the quarterly preview is never silently
+# skipped.
+
+[Unit]
+Description=Schedule quarterly rhel-oe-build-lab update dry-run (canary)
+Documentation=file:///opt/rhel-oe-build-lab/docs/scheduling.md
+
+[Timer]
+OnCalendar=quarterly
+Persistent=true
+# Stagger the start so this never lands exactly on the hour.
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

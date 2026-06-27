@@ -95,7 +95,8 @@ rhel-oe-build-lab/
 │   └── templates/
 │       └── quarterly_report.md.j2   # Per-host update report template
 │
-├── scheduling/                       # systemd timer/service for drift detection
+├── scheduling/                       # Ansible-managed drift-detection timer (CRQ-005)
+├── systemd/                          # Static copy-deploy units: weekly validation + quarterly dry-run
 ├── change-records/
 │   ├── CRQ-001-quarterly-oe-update.md
 │   ├── CRQ-002-admin-user-root-ssh-disable.md
@@ -206,6 +207,28 @@ To apply security errata only (instead of all updates):
 ```bash
 ansible-playbook playbooks/02-quarterly-update.yml -e patching_update_mode=security
 ```
+
+---
+
+## Scheduled Operations
+
+The `systemd/` directory holds static units that schedule only the
+non-destructive parts of this workflow:
+
+- **Weekly validation is safe to schedule.** `rhel-oe-weekly-validation.timer`
+  runs `03-validation.yml` (Sunday 02:00) to detect drift. It changes nothing.
+- **The quarterly update dry-run is safe to schedule.**
+  `rhel-oe-quarterly-dryrun.timer` runs `02-quarterly-update.yml --check --diff
+  --limit servera` to preview the next patch cycle on the canary. It patches nothing.
+- **Full quarterly patching requires manual approval.** Applying updates is a
+  deliberate, human-driven step performed after reviewing the dry-run.
+
+> This lab intentionally schedules non-destructive validation and quarterly
+> dry-runs while requiring manual approval for production-impacting patch
+> deployment.
+
+Detailed install/enable/approval instructions live in
+[`docs/scheduling.md`](docs/scheduling.md).
 
 ---
 
@@ -339,6 +362,7 @@ so structural regressions are caught before they reach the fleet.
 ## Docs
 
 - [Architecture](architecture.md)
+- [Scheduling](docs/scheduling.md)
 - [Validation Guide](docs/validation-guide.md)
 - [Troubleshooting](docs/troubleshooting.md)
 - [Lessons Learned](docs/lessons-learned.md)

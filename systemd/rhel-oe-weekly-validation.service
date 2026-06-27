@@ -1,0 +1,25 @@
+# rhel-oe-weekly-validation.service
+#
+# Lab-safe scheduling pattern. This unit runs the validation playbook
+# against the fleet to detect drift from the baseline (a stopped
+# service, SELinux flipped to permissive, a missing sudoers drop-in,
+# degraded time sync, etc.).
+#
+# Validation is READ-ONLY: 03-validation.yml only asserts expected
+# state, it never remediates. Detection runs on a schedule; remediation
+# stays a deliberate, separate, human-driven action. If validation
+# finds drift the playbook exits non-zero, this oneshot lands in the
+# 'failed' state, and `systemctl --failed` (or an OnFailure= hook)
+# surfaces it.
+
+[Unit]
+Description=rhel-oe-build-lab weekly fleet validation / drift detection
+Documentation=file:///opt/rhel-oe-build-lab/docs/scheduling.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/rhel-oe-build-lab
+ExecStart=/usr/bin/ansible-playbook playbooks/03-validation.yml
+Nice=10

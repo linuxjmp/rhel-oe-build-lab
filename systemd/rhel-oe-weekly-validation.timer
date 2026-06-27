@@ -1,0 +1,21 @@
+# rhel-oe-weekly-validation.timer
+#
+# Schedules the read-only weekly drift check. Validation is safe to run
+# unattended because it changes nothing — it only asserts state and
+# reports pass/fail. Remediation is never triggered from here.
+#
+# Sunday 02:00 is a quiet maintenance window. Persistent=true re-runs a
+# check missed while the control node was off, so a powered-down weekend
+# doesn't skip the drift check.
+
+[Unit]
+Description=Schedule weekly rhel-oe-build-lab validation / drift detection
+Documentation=file:///opt/rhel-oe-build-lab/docs/scheduling.md
+
+[Timer]
+OnCalendar=Sun *-*-* 02:00:00
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

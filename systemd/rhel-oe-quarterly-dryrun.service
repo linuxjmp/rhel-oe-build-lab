@@ -1,0 +1,32 @@
+# rhel-oe-quarterly-dryrun.service
+#
+# Lab-safe scheduling pattern. This unit runs the quarterly update
+# playbook in NON-DESTRUCTIVE dry-run mode (--check --diff) against the
+# canary host only. Nothing is patched, rebooted, or otherwise changed.
+#
+# Why dry-run on a schedule:
+#   - It produces change visibility — a standing record of *what* the
+#     next quarterly patch cycle would do — without applying anything.
+#   - --limit servera keeps even the read-only run scoped to the canary,
+#     so the blast radius is one host, never the fleet.
+#
+# Real patch deployment is deliberately NOT automated. Applying updates
+# requires a human to review this dry-run output and then run the
+# playbook without --check (see docs/scheduling.md, "Manual approval
+# workflow"). Remediation and validation are kept separate on purpose.
+
+[Unit]
+Description=rhel-oe-build-lab quarterly update DRY-RUN on canary (servera)
+Documentation=file:///opt/rhel-oe-build-lab/docs/scheduling.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Placeholder deploy path — clone/copy the repo here on the control node.
+WorkingDirectory=/opt/rhel-oe-build-lab
+# Dry-run only: --check makes no changes, --diff shows what would change,
+# --limit servera confines the run to the canary host.
+ExecStart=/usr/bin/ansible-playbook playbooks/02-quarterly-update.yml --check --diff --limit servera
+# Low priority — this is a reporting run, not real work.
+Nice=10
